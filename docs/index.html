@@ -80,29 +80,29 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 
 /* ---------- game cards ---------- */
 /* 2-column grid of compact game cards; the home screen scrolls if a phone is short */
-#home{justify-content:flex-start;overflow-y:auto;touch-action:pan-y}
+#home{justify-content:flex-start;overflow-y:auto;touch-action:pan-y;gap:.55em;padding-block:.7em}
 #home > :first-child{margin-top:auto}
-#home > :last-child{margin-bottom:auto}
+#home > .row{margin-bottom:auto}
 /* one big game card at a time; swipe sideways (scroll-snap) to pick a game */
 .carwrap{position:relative;width:100%;max-width:21em}
 .carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;touch-action:pan-x;overscroll-behavior-x:contain;
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .carousel::-webkit-scrollbar{display:none}
 .slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;padding:.3em 0 .55em}
-.card{display:flex;flex-direction:column;align-items:center;gap:.4em;width:min(15em, calc(100% - 4.6em));background:var(--panel);
-  border:.18em solid var(--yellow);border-radius:.8em;padding:1em .9em .9em;text-align:center;font:inherit;color:inherit;
+.card{display:flex;flex-direction:column;align-items:center;gap:.3em;width:min(15em, calc(100% - 4.6em));background:var(--panel);
+  border:.18em solid var(--yellow);border-radius:.8em;padding:.75em .85em .7em;text-align:center;font:inherit;color:inherit;
   cursor:pointer;box-shadow:0 .25em 0 var(--ink);transition:transform .06s}
 .card:active{transform:translateY(.15em)}
 .card:focus-visible{outline:.15em solid var(--white);outline-offset:.15em}
-.card .ic{height:3.4em;display:flex;align-items:center;justify-content:center}
-.card canvas{height:100%;width:auto;max-width:6em}
+.card .ic{height:2.7em;display:flex;align-items:center;justify-content:center}
+.card canvas{height:100%;width:auto;max-width:5em}
 .ctext{min-width:0;width:100%}
 .cat{display:inline-block;font-size:.65em;color:var(--ink);background:var(--cyan);padding:.1em .5em}
-.card h2{font-size:1.3em;font-weight:400;line-height:1.25;margin-top:.25em;text-wrap:balance}
-.card .sub{font-size:.74em;color:var(--muted);line-height:1.5;margin-top:.3em}
-.card .best{font-size:.72em;color:var(--yellow);margin-top:.35em}
+.card h2{font-size:1.2em;font-weight:400;line-height:1.25;margin-top:.2em;text-wrap:balance}
+.card .sub{font-size:.72em;color:var(--muted);line-height:1.45;margin-top:.2em}
+.card .best{font-size:.72em;color:var(--yellow);margin-top:.25em}
 .card .best b{font-family:var(--f-arcade);font-weight:400;font-size:.85em;margin-left:.4em}
-.go{margin-top:.2em;font-size:1em;background:var(--yellow);color:var(--ink);padding:.35em 1.3em;border-radius:.4em;
+.go{margin-top:.1em;font-size:1em;background:var(--yellow);color:var(--ink);padding:.3em 1.3em;border-radius:.4em;
   box-shadow:0 .18em 0 var(--yellow-deep)}
 .arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:1;width:2.1em;height:2.1em;padding:0;border-radius:50%;
   font:inherit;font-size:.85em;color:var(--white);background:var(--panel);border:.15em solid var(--cyan);cursor:pointer;
@@ -113,7 +113,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .dots{display:flex;gap:.5em;justify-content:center}
 .dots button{width:.6em;height:.6em;padding:0;border:0;border-radius:50%;background:rgba(244,248,255,.4);cursor:pointer;transition:transform .15s}
 .dots button[aria-current="true"]{background:var(--yellow);transform:scale(1.35)}
-.field{flex:none;width:100%;height:3.4em}
+.field{flex:none;width:100%;height:2.4em}
 .install{display:flex;align-items:center;gap:.4em;font-family:var(--f-pixel);font-size:.85em;color:var(--ink);
   background:var(--cyan);border:.14em solid var(--white);border-radius:2em;padding:.35em 1em .35em .7em;cursor:pointer;
   box-shadow:0 .2em 0 var(--ink)}
@@ -121,7 +121,11 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .install:active{transform:translateY(.15em)}
 .install:focus-visible{outline:.15em solid var(--white);outline-offset:.15em}
 #install,#privacy{background:rgba(7,11,43,.92);gap:.8em}
-.plink{font:inherit;font-size:.65em;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer;padding:.2em}
+.plink{font:inherit;font-size:.6em;color:var(--white);opacity:.75;background:none;border:0;text-decoration:underline;cursor:pointer;padding:.3em}
+#home .plink{position:absolute;right:.5em;bottom:.15em;margin:0}
+#home .row{flex-wrap:nowrap;gap:.4em;font-size:.9em}
+#home .row .btn{padding:.5em .8em;white-space:nowrap}
+#home .row .install{white-space:nowrap}
 .ptext{max-width:19em;display:flex;flex-direction:column;gap:.6em;font-size:.82em;line-height:1.65;text-align:left;
   background:var(--panel);border:.12em solid rgba(169,184,238,.4);border-radius:.6em;padding:.8em 1em}
 .ptext b{color:var(--yellow);font-weight:400}
@@ -299,8 +303,8 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
       <div class="row">
         <button id="dexBtn" class="btn" type="button">なぜ？図鑑 <span id="dexCount">0/0</span></button>
         <button id="muteBtn" class="btn" type="button">音 ON</button>
+        <button id="installBtn" class="install" type="button" aria-label="ホーム画面に追加" hidden><span class="plus" aria-hidden="true">＋</span>ホームに追加</button>
       </div>
-      <button id="installBtn" class="install" type="button" hidden><span class="plus" aria-hidden="true">＋</span>ホーム画面に追加</button>
       <button id="privacyBtn" class="plink" type="button" hidden>アクセス解析について</button>
     </section>
 
@@ -1693,6 +1697,7 @@ function layout(){
   stage.style.fontSize = (sw/22)+'px';
   cv.width = W; cv.height = H; ctx.imageSmoothingEnabled = false;
   STARS.forEach(s => { if (s.y>H) s.y = Math.random()*H; });
+  if (typeof fitHome === 'function') fitHome();
 }
 
 function die(reason, x, y, sound, gentle){
@@ -1733,7 +1738,15 @@ function discover(i, extra=''){
 const screens = ['home','over','dex','pause','install','privacy'];
 function show(id){
   screens.forEach(s => { $('#'+s).hidden = s!==id; });
-  if (id==='home') setTimeout(() => goSlide(homeIdx, false), 0);   // re-snap after the carousel becomes visible again
+  if (id==='home'){ fitHome(); setTimeout(() => goSlide(homeIdx, false), 0); }   // re-snap after the carousel becomes visible again
+}
+// short phone screens (browser bars take space): shrink the whole home screen until it fits without scrolling
+function fitHome(){
+  const home = $('#home');
+  if (home.hidden) return;
+  home.style.fontSize = '';
+  const need = home.scrollHeight, have = home.clientHeight;
+  if (need > have + 1) home.style.fontSize = Math.max(.72, have/need*.985).toFixed(3) + 'em';
 }
 
 function startGame(id){
@@ -1960,7 +1973,7 @@ let installPrompt = null;
 const canInstallHere = !!document.querySelector('link[rel="manifest"]');
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-function refreshInstall(){ $('#installBtn').hidden = !canInstallHere || isStandalone(); }
+function refreshInstall(){ $('#installBtn').hidden = !canInstallHere || isStandalone(); fitHome(); }
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; refreshInstall(); });
 addEventListener('appinstalled', () => { installPrompt = null; refreshInstall(); track('app_installed'); });
 const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="共有ボタン"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 11v9h14v-9"/></svg>';
@@ -2142,6 +2155,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 buildHome(); layout(); refreshHome(); show('home');
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHome);   // pixel fonts change text heights
 requestAnimationFrame(frame);
 })();
 </script>
