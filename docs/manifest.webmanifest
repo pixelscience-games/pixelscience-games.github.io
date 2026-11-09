@@ -1,0 +1,30 @@
+{
+  "name": "PixelScience Games",
+  "short_name": "PS Games",
+  "description": "遊んでわかる！科学の「なぜ？」 PixelScienceの科学ミニゲーム集。指一本で遊べる6本のゲームと、99の「なぜ？」図鑑。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b2b",
+  "theme_color": "#070b2b",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

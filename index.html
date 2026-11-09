@@ -1,0 +1,2013 @@
+<title>PixelScience Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
+<style>
+/* Layout: one phone-shaped pixel stage (canvas 144px wide, scaled up), HTML overlays for text.
+   Single dark look on purpose: PixelScience's night-sky navy with yellow + cyan neon. */
+:root{
+  --space:#070b2b;
+  --ink:#0b1440;
+  --panel:rgba(14,26,82,.92);
+  --cyan:#3ee6ff;
+  --yellow:#ffd23a;
+  --yellow-deep:#b88a00;
+  --white:#f4f8ff;
+  --red:#ff3b5c;
+  --green:#5ee05e;
+  --orange:#ff9a3a;
+  --pink:#ff5fa2;
+  --muted:#a9b8ee;
+  --f-pixel:"DotGothic16","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  --f-arcade:"Press Start 2P","DotGothic16",ui-monospace,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{position:relative;height:100%;display:flex;align-items:center;justify-content:center}
+#stage{position:relative;overflow:hidden;touch-action:none;background:var(--space);font-size:17px}
+#cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:.7em;padding:1.1em 1em;text-align:center}
+.pix{image-rendering:pixelated;image-rendering:crisp-edges}
+#over,#pause,#dex{background:rgba(7,11,43,.66)}
+
+/* ---------- logo ---------- */
+.logo{display:flex;flex-direction:column;align-items:center;font-family:var(--f-arcade);line-height:1.15;transform:rotate(-3deg)}
+.hero{display:flex;align-items:flex-end;justify-content:center;gap:.2em;width:100%}
+.chr{flex:none;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+.logo .l1,.logo .l2{font-size:1.65em;letter-spacing:-.02em;
+  text-shadow:.08em 0 0 var(--ink),-.08em 0 0 var(--ink),0 .08em 0 var(--ink),0 -.08em 0 var(--ink),
+  .14em .16em 0 var(--ink),0 0 .5em rgba(62,230,255,.55)}
+.logo .l1{color:var(--white)}
+.logo .l2{color:var(--yellow)}
+.chip{display:inline-block;margin-top:.6em;font-family:var(--f-arcade);font-size:.68em;letter-spacing:.35em;
+  padding:.45em .5em .45em .85em;background:var(--cyan);color:var(--ink);box-shadow:.2em .2em 0 var(--ink)}
+.tag{font-size:.9em;background:var(--panel);border:.12em solid var(--white);border-radius:2em;padding:.25em 1em}
+.tag b{color:var(--yellow);font-weight:400}
+
+/* ---------- game cards ---------- */
+/* 2-column grid of compact game cards; the home screen scrolls if a phone is short */
+#home{justify-content:flex-start;overflow-y:auto;touch-action:pan-y}
+#home > :first-child{margin-top:auto}
+#home > :last-child{margin-bottom:auto}
+/* one big game card at a time; swipe sideways (scroll-snap) to pick a game */
+.carwrap{position:relative;width:100%;max-width:21em}
+.carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;touch-action:pan-x;overscroll-behavior-x:contain;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.carousel::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;justify-content:center;padding:.3em 0 .55em}
+.card{display:flex;flex-direction:column;align-items:center;gap:.4em;width:min(15em, calc(100% - 4.6em));background:var(--panel);
+  border:.18em solid var(--yellow);border-radius:.8em;padding:1em .9em .9em;text-align:center;font:inherit;color:inherit;
+  cursor:pointer;box-shadow:0 .25em 0 var(--ink);transition:transform .06s}
+.card:active{transform:translateY(.15em)}
+.card:focus-visible{outline:.15em solid var(--white);outline-offset:.15em}
+.card .ic{height:3.4em;display:flex;align-items:center;justify-content:center}
+.card canvas{height:100%;width:auto;max-width:6em}
+.ctext{min-width:0;width:100%}
+.cat{display:inline-block;font-size:.65em;color:var(--ink);background:var(--cyan);padding:.1em .5em}
+.card h2{font-size:1.3em;font-weight:400;line-height:1.25;margin-top:.25em;text-wrap:balance}
+.card .sub{font-size:.74em;color:var(--muted);line-height:1.5;margin-top:.3em}
+.card .best{font-size:.72em;color:var(--yellow);margin-top:.35em}
+.card .best b{font-family:var(--f-arcade);font-weight:400;font-size:.85em;margin-left:.4em}
+.go{margin-top:.2em;font-size:1em;background:var(--yellow);color:var(--ink);padding:.35em 1.3em;border-radius:.4em;
+  box-shadow:0 .18em 0 var(--yellow-deep)}
+.arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:1;width:2.1em;height:2.1em;padding:0;border-radius:50%;
+  font:inherit;font-size:.85em;color:var(--white);background:var(--panel);border:.15em solid var(--cyan);cursor:pointer;
+  box-shadow:0 .18em 0 var(--ink)}
+.arrow:active{transform:translateY(-45%)}
+.arrow:focus-visible{outline:.15em solid var(--white);outline-offset:.1em}
+.prev{left:0}.next{right:0}
+.dots{display:flex;gap:.5em;justify-content:center}
+.dots button{width:.6em;height:.6em;padding:0;border:0;border-radius:50%;background:rgba(244,248,255,.4);cursor:pointer;transition:transform .15s}
+.dots button[aria-current="true"]{background:var(--yellow);transform:scale(1.35)}
+.field{flex:none;width:100%;height:3.4em}
+
+/* per-game overlay labels */
+#layer{position:absolute;inset:0;pointer-events:none}
+.tlabel{position:absolute;transform:translateY(-50%);font-size:.85em;color:var(--yellow);white-space:nowrap;
+  text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
+.tscale{position:absolute;transform:translateY(-50%);font-size:.6em;color:var(--muted);white-space:nowrap}
+.tres{position:absolute;left:44%;right:.6em;top:58%;text-align:center;font-size:1.35em;line-height:1.3;
+  text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
+.tres small{font-size:.5em;color:var(--white)}
+.tres.ok,.rres.ok{color:var(--green)}
+.tres.ng,.rres.ng{color:var(--red)}
+.rq{position:absolute;left:0;right:0;top:27%;text-align:center;font-size:1.35em;color:var(--yellow);
+  text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
+.rcards{position:absolute;left:.7em;right:.7em;top:35%;display:flex;align-items:stretch;gap:.35em}
+.rcard{flex:1;min-width:0;min-height:9.5em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.45em;
+  background:var(--panel);border:.18em solid var(--white);border-radius:.7em;padding:.8em .45em;text-align:center;
+  box-shadow:0 .22em 0 var(--ink);transition:transform .15s}
+.rcard canvas{width:2.6em;height:auto}
+.rcard b{font-weight:400;font-size:1em;line-height:1.3;overflow-wrap:anywhere}
+.rcard .v{font-size:.85em;color:var(--cyan);min-height:1.3em}
+.rcard.win{border-color:var(--green);box-shadow:0 0 0 .15em var(--green),0 .22em 0 var(--ink);transform:scale(1.04)}
+.rcard.lose{opacity:.55}
+.rcard.picked.lose{border-color:var(--red);opacity:.8}
+.vs{align-self:center;font-family:var(--f-arcade);font-size:.65em;color:var(--yellow)}
+.rres{position:absolute;left:0;right:0;top:66%;text-align:center;font-size:1.45em;
+  text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
+
+/* ---------- buttons ---------- */
+.btn{font-family:var(--f-pixel);font-size:1em;color:var(--white);background:var(--panel);
+  border:.14em solid var(--cyan);border-radius:.5em;padding:.5em 1em;cursor:pointer;
+  box-shadow:0 .22em 0 var(--ink);transition:transform .06s}
+.btn:active{transform:translateY(.18em);box-shadow:0 .04em 0 var(--ink)}
+.btn:focus-visible{outline:.15em solid var(--white);outline-offset:.15em}
+.btn.primary{font-size:1.25em;background:var(--yellow);color:var(--ink);border-color:var(--white);
+  box-shadow:0 .22em 0 var(--yellow-deep);padding:.45em 1.5em;animation:pulse 1.4s ease-in-out infinite}
+.row{display:flex;gap:.6em;flex-wrap:wrap;justify-content:center}
+@keyframes pulse{50%{transform:scale(1.05)}}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;
+  gap:.6em;padding:.7em .8em;pointer-events:none}
+.alt{min-width:0}
+.alt b{display:block;font-family:var(--f-arcade);font-weight:400;font-size:1em;
+  text-shadow:.12em .12em 0 var(--ink);font-variant-numeric:tabular-nums}
+.alt span{display:inline-block;margin-top:.4em;font-size:.72em;color:var(--ink);background:var(--cyan);padding:.1em .45em}
+.hudr{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:.45em}
+.pbtn{pointer-events:auto;display:flex;align-items:center;gap:.45em;font-family:var(--f-pixel);font-size:.8em;
+  color:var(--ink);background:var(--yellow);border:.15em solid var(--white);border-radius:.45em;
+  padding:.4em .7em;cursor:pointer;box-shadow:0 .2em 0 var(--yellow-deep)}
+.pbtn .bars{display:block;width:.75em;height:.85em;
+  background:linear-gradient(90deg,var(--ink) 0 35%,transparent 35% 65%,var(--ink) 65% 100%)}
+.pbtn:active{transform:translateY(.15em)}
+.pbtn:focus-visible{outline:.2em solid var(--yellow);outline-offset:.15em}
+.hearts{display:flex;gap:.25em}
+.hearts img{width:1.6em;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;filter:drop-shadow(.1em .1em 0 var(--ink))}
+.hearts img.lost{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(1.7)}100%{transform:none}}
+.gauge{flex:none;text-align:right;font-size:.7em;text-shadow:.1em .1em 0 var(--ink)}
+.gauge i{display:block;width:7em;height:.8em;margin-top:.3em;border:.15em solid var(--white);background:var(--ink)}
+.gauge em{display:block;height:100%;background:var(--green);width:100%}
+.gauge.heat em{background:var(--orange)}
+.gauge.life em{background:var(--pink)}
+.gauge.warn em{background:var(--red);animation:blink .4s steps(2) infinite}
+@keyframes blink{50%{opacity:.3}}
+
+.fact{position:absolute;left:.7em;right:.7em;top:3.9em;background:var(--panel);border:.15em solid var(--yellow);
+  border-radius:.6em;padding:.55em .75em;text-align:left;pointer-events:none;
+  transform:translateY(-16em);transition:transform .35s cubic-bezier(.2,1.4,.4,1)}
+.fact.show{transform:none}
+.fact .flab{display:inline-block;font-size:.65em;background:var(--yellow);color:var(--ink);padding:.1em .5em;margin-bottom:.3em}
+.fact .fkm{font-family:var(--f-arcade);font-size:.5em;color:var(--cyan);margin-left:.6em}
+.fact b{display:block;font-weight:400;font-size:1em;color:var(--yellow)}
+.fact p{font-size:.78em;line-height:1.5;margin-top:.15em}
+
+#hint{position:absolute;left:1em;right:1em;top:38%;text-align:center;font-size:.88em;line-height:1.65;
+  padding:.8em .9em;background:var(--panel);border:.15em solid var(--cyan);border-radius:.6em;
+  box-shadow:0 .25em 0 var(--ink);pointer-events:none}
+#hint .how{display:block;font-size:.75em;color:var(--cyan);letter-spacing:.1em;margin-bottom:.3em}
+#hint .diffs{display:flex;gap:.4em;justify-content:center;margin-top:.8em}
+.dbtn{pointer-events:auto;flex:1;max-width:6.5em;font-family:var(--f-pixel);font-size:.9em;color:var(--white);
+  background:var(--ink);border:.14em solid rgba(169,184,238,.45);border-radius:.4em;padding:.35em .2em;cursor:pointer}
+.dbtn[aria-pressed="true"]{color:var(--ink);border-color:var(--white);box-shadow:0 .15em 0 var(--ink)}
+.dbtn.easy[aria-pressed="true"]{background:var(--green)}
+.dbtn.normal[aria-pressed="true"]{background:var(--yellow)}
+.dbtn.hard[aria-pressed="true"]{background:var(--red);color:var(--white)}
+.dbtn:focus-visible{outline:.15em solid var(--white);outline-offset:.1em}
+#hint .tap{display:block;margin-top:.7em;font-size:1.25em;color:var(--yellow);animation:blink 1s steps(2) infinite}
+
+#alert{position:absolute;left:50%;top:48%;transform:translateX(-50%);white-space:nowrap;pointer-events:none;
+  font-size:.95em;color:var(--white);background:#d6182a;border:.15em solid var(--white);padding:.3em .8em;
+  border-radius:.4em;box-shadow:0 .2em 0 var(--ink);animation:blink .3s steps(2) infinite}
+#bigTime{position:absolute;left:0;right:0;bottom:7%;text-align:center;pointer-events:none;
+  font-family:var(--f-arcade);font-size:2.6em;color:var(--white);line-height:1;font-variant-numeric:tabular-nums;
+  text-shadow:.08em 0 0 var(--ink),-.08em 0 0 var(--ink),0 .08em 0 var(--ink),0 -.08em 0 var(--ink),.12em .14em 0 var(--ink)}
+#bigTime .u{font-family:var(--f-pixel);font-size:.38em;margin-left:.15em}
+#bigTime.warn{color:var(--red);animation:blink .5s steps(2) infinite}
+#bigPlus{position:absolute;left:0;right:0;bottom:110%;font-size:.45em;color:var(--yellow);opacity:0}
+#bigPlus.show{animation:rise 1.3s ease-out forwards}
+@keyframes rise{0%{opacity:0;transform:translateY(.6em)}15%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-1em)}}
+
+/* ---------- result ---------- */
+.reason{font-family:var(--f-arcade);font-size:1.1em;color:var(--red);text-shadow:.12em .12em 0 var(--ink)}
+.reason.good{color:var(--cyan)}
+.lbl{font-size:.8em;color:var(--muted)}
+.big{font-family:var(--f-arcade);font-size:1.5em;color:var(--yellow);text-shadow:.1em .1em 0 var(--ink);line-height:1.3}
+.rec{font-size:.85em;min-height:1.2em}
+.rec.new{color:var(--cyan);animation:blink .5s steps(2) 6}
+.found{width:100%;max-width:19em;background:var(--panel);border:.12em solid rgba(169,184,238,.4);border-radius:.6em;
+  padding:.6em .8em;text-align:left;font-size:.8em;line-height:1.55}
+.found h3{font-size:.95em;font-weight:400;color:var(--yellow);margin-bottom:.2em}
+.found ul{padding:0;margin:0}
+.found li{list-style:none}
+.found li::before{content:"■ ";color:var(--cyan)}
+.found .next{color:var(--muted)}
+.share{font-size:.72em;color:var(--muted);max-width:19em;-webkit-user-select:text;user-select:text}
+
+/* ---------- 図鑑 ---------- */
+#dex{justify-content:flex-start;padding-top:1.3em}
+.dt{font-size:1.35em;font-weight:400;color:var(--yellow);text-shadow:.1em .1em 0 var(--ink)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:.35em;width:100%;max-width:20em}
+.tab{flex:1;font-family:var(--f-pixel);font-size:.75em;color:var(--white);background:var(--panel);
+  border:.14em solid rgba(169,184,238,.4);border-radius:.4em;padding:.4em .2em;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--yellow);color:var(--ink);border-color:var(--white)}
+.dsub{font-size:.8em;color:var(--muted)}
+.dexlist{flex:1;min-height:0;width:100%;max-width:20em;overflow-y:auto;touch-action:pan-y;display:flex;flex-direction:column;gap:.5em;
+  margin:0;padding:.2em .1em;list-style:none;text-align:left}
+.dexlist li{background:var(--panel);border:.12em solid var(--yellow);border-radius:.6em;padding:.55em .75em}
+.dexlist li.lock{border-color:rgba(169,184,238,.3);color:var(--muted)}
+.dexlist .k{font-family:var(--f-arcade);font-size:.55em;color:var(--cyan)}
+.dexlist b{display:block;font-weight:400;font-size:.95em;margin-top:.15em}
+.dexlist p{font-size:.75em;line-height:1.5;margin-top:.15em}
+
+@media (prefers-reduced-motion:reduce){
+  .btn.primary,#hint .tap,.rec.new,.gauge.warn em,#bigTime.warn,#alert{animation:none}
+  #bigPlus.show{animation:none;opacity:1}
+  .fact{transition:none}
+}
+</style>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="cv" width="144" height="320" aria-label="ゲーム画面"></canvas>
+    <div id="layer" hidden></div>
+
+    <section id="home" class="screen">
+      <div class="hero">
+        <canvas id="heroL" class="pix chr" aria-hidden="true"></canvas>
+        <div class="logo" role="img" aria-label="PixelScience GAMES">
+          <span class="l1">Pixel</span><span class="l2">Science</span><span class="chip">GAMES</span>
+        </div>
+        <canvas id="heroR" class="pix chr" aria-hidden="true"></canvas>
+      </div>
+      <p class="tag">遊んでわかる！科学の<b>「なぜ？」</b></p>
+      <div class="carwrap">
+        <button class="arrow prev" id="prevBtn" type="button" aria-label="前のゲーム">◀</button>
+        <div class="carousel" id="cards" aria-label="ゲームをえらぶ（横にスワイプ）"></div>
+        <button class="arrow next" id="nextBtn" type="button" aria-label="次のゲーム">▶</button>
+      </div>
+      <div class="dots" id="dots"></div>
+      <div class="field" id="field" aria-hidden="true"></div>
+      <div class="row">
+        <button id="dexBtn" class="btn" type="button">なぜ？図鑑 <span id="dexCount">0/0</span></button>
+        <button id="muteBtn" class="btn" type="button">音 ON</button>
+      </div>
+    </section>
+
+    <div id="hud" hidden>
+      <div class="alt"><b id="hudMain">0</b><span id="hudChip"></span></div>
+      <div class="hudr">
+        <div class="gauge" id="gauge"><span id="gLabel">燃料</span><i><em id="gBar"></em></i></div>
+        <div class="hearts" id="hearts" hidden aria-label="ライフ"></div>
+        <button id="pauseBtn" class="pbtn" type="button"><span class="bars" aria-hidden="true"></span>一時停止</button>
+      </div>
+    </div>
+    <div id="fact" class="fact" aria-live="polite">
+      <span class="flab" id="factL">なぜ？発見！</span><span class="fkm" id="factK"></span>
+      <b id="factT"></b><p id="factB"></p>
+    </div>
+    <div id="hint" hidden></div>
+    <div id="alert" hidden role="alert"></div>
+    <div id="bigTime" hidden aria-live="off">0<span class="u">秒</span><span id="bigPlus"></span></div>
+
+    <section id="pause" class="screen" hidden>
+      <p class="big">PAUSE</p>
+      <button id="resumeBtn" class="btn primary" type="button">つづける</button>
+      <div class="row">
+        <button id="retryBtn" class="btn" type="button">やり直す</button>
+        <button id="quitBtn" class="btn" type="button">ホームに戻る</button>
+      </div>
+    </section>
+
+    <section id="over" class="screen" hidden>
+      <p class="reason" id="reason">CRASH!</p>
+      <p class="lbl" id="reasonJa"></p>
+      <p class="lbl" id="scoreLbl"></p>
+      <p class="big" id="overScore">0</p>
+      <p class="rec" id="rec"></p>
+      <div class="found" id="foundBox"></div>
+      <button id="againBtn" class="btn primary" type="button">もう一度</button>
+      <div class="row">
+        <button id="shareBtn" class="btn" type="button">結果をコピー</button>
+        <button id="homeBtn" class="btn" type="button">ホーム</button>
+      </div>
+      <p id="shareText" class="share" hidden></p>
+    </section>
+
+    <section id="dex" class="screen" hidden>
+      <h2 class="dt">なぜ？図鑑</h2>
+      <div class="tabs" id="dexTabs" role="tablist"></div>
+      <p class="dsub" id="dexSub"></p>
+      <ol class="dexlist" id="dexList"></ol>
+      <button id="dexBack" class="btn" type="button">もどる</button>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const W = 144;
+let H = 320;
+const cv = $('#cv'), ctx = cv.getContext('2d');
+const stage = $('#stage');
+
+/* ================= helpers ================= */
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const rnd = (a,b) => a+Math.random()*(b-a);
+const pick = arr => arr[(Math.random()*arr.length)|0];
+const hex = h => [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const mix = (a,b,f) => a.map((v,i)=>v+(b[i]-v)*f);
+function atStops(stops, d){
+  for (let i=1;i<stops.length;i++) if (d<=stops[i][0]){
+    const [d0,k0]=stops[i-1],[d1,k1]=stops[i]; return k0+(k1-k0)*(d-d0)/(d1-d0);
+  }
+  const [d0,k0]=stops[stops.length-2],[d1,k1]=stops[stops.length-1];
+  return k1+(k1-k0)/(d1-d0)*(d-d1);
+}
+function fmtKm(k){
+  if (k<100) return k.toFixed(1)+' km';
+  if (k<10000) return Math.floor(k).toLocaleString('ja-JP')+' km';
+  if (k<1e8) return (k/1e4).toFixed(1)+'万 km';
+  return (k/1e8).toFixed(2)+'億 km';
+}
+function fmtDepth(k){
+  return k<100 ? k.toFixed(1)+' km' : Math.floor(k).toLocaleString('ja-JP')+' km';
+}
+
+/* ================= save ================= */
+const SAVE_KEY = 'pixelscience-games-v1';
+let SAVE = {v:2, mute:false, games:{}};
+try {
+  const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+  if (s){
+    SAVE.mute = !!s.mute;
+    if (s.games) SAVE.games = s.games;
+    else if (s.best != null) SAVE.games.rocket = {best:s.best||0, found:s.found||[]}; // v1 → v2
+  }
+} catch (e) {}
+function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+function gsave(id){
+  const g = SAVE.games[id] || (SAVE.games[id] = {best:0, found:[]});
+  if (!g.bests) g.bests = {easy:0, normal:g.best||0, hard:0};   // older saves only had one best (normal)
+  if (!g.diff) g.diff = 'normal';
+  return g;
+}
+const DIFFS = ['easy','normal','hard'];
+const DIFF_LABEL = {easy:'イージー', normal:'ノーマル', hard:'ハード'};
+
+/* ================= sprites ================= */
+const PAL = {W:'#f4f8ff',R:'#ff3b5c',C:'#3ee6ff',B:'#2f7bff',G:'#8a9bc4',Y:'#ffd23a',K:'#16204f',O:'#ff9a3a',D:'#1d3f9a',
+  P:'#ff8fb8',E:'#e8dcc0',T:'#6b4a2c',L:'#fff6b0',M:'#ff5a1f'};
+function spr(rows){
+  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
+  const x = c.getContext('2d');
+  rows.forEach((r,j) => { for (let i=0;i<r.length;i++){ const ch=r[i]; if (ch!=='.'){ x.fillStyle=PAL[ch]; x.fillRect(i,j,1,1);} } });
+  return c;
+}
+function disc(r, fn){
+  const s = r*2+2, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d'), img = x.createImageData(s,s), cx = s/2, cy = s/2;
+  for (let j=0;j<s;j++) for (let i=0;i<s;i++){
+    const dx=i+.5-cx, dy=j+.5-cy, col = fn(dx,dy,Math.hypot(dx,dy),Math.atan2(dy,dx));
+    if (!col) continue; const [R,G,B]=hex(col), p=(j*s+i)*4;
+    img.data[p]=R; img.data[p+1]=G; img.data[p+2]=B; img.data[p+3]=255;
+  }
+  x.putImageData(img,0,0); return c;
+}
+
+const ROCKET = spr(['.....R.....','....RRR....','...RRRRR...','...WWWWW...','..WWWWWWW..','..WWWCWWW..','..WWCBCWW..',
+  '..WWWCWWW..','..WWWWWWW..','..WWWWWWW..','.RWWWWWWWR.','RRWWWWWWWRR','RR.GGGGG.RR','R...GGG...R']);
+const ATOM = spr(['..CCCCC..','.C.....C.','C..YYY..C','C.YYWYY.C','C..YYY..C','.C.....C.','..CCCCC..']);
+const BIRD = [spr(['K.....K','.K...K.','..KKK..','...K...']), spr(['.......','..KKK..','KK.K.KK','.......'])];
+const PLANE = spr(['.....W.......','W....WW......','WWWWWWWWWWWC.','W....WW......','.....W.......']);
+const BALLOON = spr(['..WWW..','.WWWWW.','WWWWWWW','WWWWWWW','.WWWWW.','..WWW..','...G...','...G...','..RRR..','..RRR..']);
+const SAT = spr(['BBBB.......BBBB','BBBBGGWWWGGBBBB','BBBB..WWW..BBBB','BBBB.......BBBB']);
+const DRILL_ROWS = ['.GGGGGGGGG.','.GYYYYYYYG.','.GYYKKKYYG.','.GYYYYYYYG.','.GGGGGGGGG.',
+  '..WGWGWGW..','..GWGWGWG..','...WGWGW...','...GWGWG...','....WGW....','....GWG....','.....W.....'];
+const DRILL = [spr(DRILL_ROWS), spr(DRILL_ROWS.map((r,j)=> j<5 ? r : r.replace(/[WG]/g, c => c==='W'?'G':'W')))];
+const WATER = spr(['..CCCCC..','.CBBBBBC.','CBBWBBBBC','CBBBBBBBC','.CBBBBBC.','..CCCCC..']);
+// underground scenery for 地球ほりほり
+const DECO = {
+  worm:     [spr(['..PPP..','PP...PP']), spr(['PP...PP','..PPP..'])],
+  root:     [spr(['..T..','.T.T.','T..T.','...T.','..T..','..T..'])],
+  bone:     [spr(['EE.....EE','EEEEEEEEE','EEEEEEEEE','EE.....EE'])],
+  ammonite: [spr(['..OOO..','.O...O.','O..OO.O','O.O.O.O','O.O...O','.O.OOO.','..O....'])],
+  dino:     [spr(['...........EE.','..........EEEE','.E..E..E..E.E.','EEEEEEEEEEEE..','.E..E..E......','..............'])],
+  gem:      [spr(['.CWC.','CCCCC','.CCC.','..C..'])],
+  diamond:  [spr(['.WLW.','WWWWW','.WWW.','..W..']), spr(['.LWL.','WLWWW','.WWW.','..W..'])],
+  magma:    [spr(['.MOM.','MOYOM','OYLYO','MOYOM','.MOM.']), spr(['.OMO.','OMOMO','MOYOM','OMOMO','.OMO.'])],
+  iron:     [spr(['..L..','.LYL.','LYWYL','.LYL.','..L..']), spr(['..Y..','.YLY.','YLWLY','.YLY.','..Y..'])],
+  fish:     [spr(['.BB..B','BWBBBB','.BB..B'])],
+};
+function decoTypes(km){
+  const k = km>6371 ? 12742-km : km;
+  if (km>12735) return ['fish'];                 // ocean on the far side
+  if (k<.25) return ['worm','root','worm','bone'];
+  if (k<12) return ['ammonite','bone','dino','gem'];
+  if (k<35) return ['gem','ammonite'];
+  if (k<150) return ['magma'];
+  if (k<660) return ['magma','diamond'];        // diamonds form ~150 km down
+  if (k<2900) return ['magma'];
+  if (k<5100) return ['magma','magma','iron'];
+  return ['iron'];
+}
+
+function rock(r, seed){
+  const craters = [0,1,2].map(k => ({a:seed*3+k*2.2, d:r*(.3+.15*k), s:Math.max(1.2,r*.22)}));
+  return disc(r, (dx,dy,d,a) => {
+    const rr = r*(.84+.1*Math.sin(a*3+seed)+.06*Math.sin(a*7+seed*2));
+    if (d>rr) return null;
+    for (const c of craters){ if (Math.hypot(dx-Math.cos(c.a)*c.d, dy-Math.sin(c.a)*c.d) < c.s) return '#5c5248'; }
+    const l = (-dx-dy)/(r*1.6);
+    return l>.25 ? '#c2b3a0' : l>-.25 ? '#8f8170' : '#5f554b';
+  });
+}
+const ROCKS = [5,6,7,8].map((r,i) => ({img:rock(r,i*1.7+.4), r}));
+function planet(r, base, light, dark, craterCol, seed){
+  const cr = craterCol ? Array.from({length:7},(_,k)=>({x:Math.cos(seed+k*2.1)*r*(.2+.09*k), y:Math.sin(seed*1.3+k*1.7)*r*(.2+.09*k), s:r*(.06+.025*(k%3))})) : [];
+  return disc(r, (dx,dy,d) => {
+    if (d>r) return null;
+    for (const c of cr){ if (Math.hypot(dx-c.x,dy-c.y)<c.s) return craterCol; }
+    const l = (-dx*.8-dy*.5)/r;
+    return l>.35 ? light : l>-.45 ? base : dark;
+  });
+}
+const MOON = planet(46,'#c9cbd6','#eef0f7','#7f849a','#9da2b5',1.2);
+const MARS = planet(42,'#d4542e','#f08a52','#7a2a1c','#b04424',2.6);
+const EARTH = disc(100, (dx,dy,d) => {
+  if (d>100) return null;
+  if (d>97) return '#7fd8ff';
+  const land = Math.sin(dx*.1+1)+Math.sin(dy*.12+dx*.05)+Math.sin((dx+dy)*.08+2) > .9;
+  if (land) return dy< -50 && d<85 ? '#8ef08e' : '#45c24a';
+  return (-dx-dy)/200 > .2 ? '#3f8cff' : '#2160d8';
+});
+
+// ---- the channel's characters (same pixel art as the videos: experiments/samples/src/PixWorld.tsx) ----
+function sprP(rows, pal){
+  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
+  const x = c.getContext('2d');
+  rows.forEach((r,j) => { for (let i=0;i<r.length;i++){ const ch=r[i]; if (ch!=='.' && pal[ch]){ x.fillStyle=pal[ch]; x.fillRect(i,j,1,1);} } });
+  return c;
+}
+function outlined(c, ink='#1c1426'){
+  const w = c.width+2, h = c.height+2, o = document.createElement('canvas'); o.width = w; o.height = h;
+  const src = c.getContext('2d').getImageData(0,0,c.width,c.height).data, x = o.getContext('2d');
+  const op = (i,j) => i>=0 && j>=0 && i<c.width && j<c.height && src[(j*c.width+i)*4+3]>0;
+  x.fillStyle = ink;
+  for (let J=0;J<h;J++) for (let I=0;I<w;I++){
+    const i = I-1, j = J-1;
+    if (!op(i,j) && (op(i-1,j)||op(i+1,j)||op(i,j-1)||op(i,j+1))) x.fillRect(I,J,1,1);
+  }
+  x.drawImage(c,1,1); return o;
+}
+const PROF_PAL = {H:'#eef0f6', h:'#b7bccd', S:'#f5cda6', s:'#dda57e', R:'#f39a8c', K:'#1c1426', G:'#2a2a3c', g:'#cdeeff', M:'#a8473a',
+  C:'#fbfbf7', c:'#c9cfdc', w:'#e7f1ff', T:'#d83b3b', P:'#3b4a82', p:'#29345e', B:'#5a3420'};
+const PROF_HEAD = [
+  '.....H..HH..HH..H.....','....HHHHHHHHHHHHHH....','...HHHHHHHHHHHHHHHH...','..HHHhHHHHHHHHHHhHHH..',
+  '.hHHSSSSSSSSSSSSSSHHh.','.HHSSSSSSSSSSSSSSSSHH.','.HHSSKKKKSSSSKKKKSSHH.','.HSSGGGGGGSSGGGGGGSSH.',
+  '.HSSGgKKgGGGGgKKgGSSH.','.HSSGgKKgGSSGgKKgGSSH.','.HSSGGGGGGSSGGGGGGSSH.','.HSRRSSSSSssSSSSSRRSH.',
+  '.HSSSSSHHHHHHHHSSSSSH.','..SSSSSSSMMMMSSSSSSS..','...sSSSSSSSSSSSSSSs...','....ssssssssssssss....','.......ssssssss.......'];
+const PROF_BLINK = PROF_HEAD.map((r,i) => i===8 ? '.HSSGggggGGGGggggGSSH.' : i===9 ? r.replace(/gKKg/g,'KKKK') : r);
+const PROF_BODY = [
+  '..CCCCCCCwTTwCCCCCCC..','.CCCCCCCCwTTwCCCCCCCC.','.CCCCCCCCCTTCCCCCCCCC.','.CCcCCCCCCTTCCCCCCcCC.',
+  '.CCcCCCCCCTTCCCCCCcCC.','.CCcCCCCCCcCCCCCCCcCC.','.CCcCCCCCCcCCCCCCCcCC.','.CCcCCCCCCcCCccccCcCC.',
+  '.SScCCCCCCcCCCCCCCcSS.','.SS.CCCCCCcCCCCCCC.SS.','....CCCCCCcCCCCCCC....','....cCCCCC.CCCCCCc....'];
+const PROF_LEGS = ['......PPPP..PPPP......','......PPPP..PPPP......','......pPPP..PPPp......','.....BBBBB..BBBBB.....'];
+const PROF = [outlined(sprP([...PROF_HEAD, ...PROF_BODY, ...PROF_LEGS], PROF_PAL)),
+              outlined(sprP([...PROF_BLINK, ...PROF_BODY, ...PROF_LEGS], PROF_PAL))];
+const ROBOT_ROWS = [
+  '.......A........','.......K........','....WWWWWWWW....','...WLWWWWWWWW...','..WWVVVVVVVVWW..','.XWWVEEVVEEVWWX.',
+  '.XWWVEEVVEEVWWX.','..WWVVVVVVVVWW..','...WWWWWWWWWW...','....wwwwwwww....','......kkkk......','..w.XXXXXXXX.w..',
+  '..W.XWWWWWWX.W..','..W.XWWddWWX.W..','..w.XWWWWWWX.w..','....XXXXXXXX....','.....kk..kk.....','....kkk..kkk....'];
+function robotSprite(accent, blink, lit){
+  const rows = blink ? ROBOT_ROWS.map((r,i) => i===5 ? r.replace(/EE/g,'VV') : i===6 ? r.replace(/EE/g,'ee') : r) : ROBOT_ROWS;
+  return outlined(sprP(rows, {A: lit ? '#ff5050' : '#7a2a3a', K:'#3a3a4a', W:'#eef2fa', L:'#ffffff', w:'#b9c2d6', V:'#1d2340',
+    E:'#6ff7ff', e:'#3aa8c0', X:accent, k:'#5a6278', d:accent}));
+}
+const ROBOT_ACCENTS = ['#2fb7ff', '#ff9a2f', '#48d36a'];
+const ROBOTS = ROBOT_ACCENTS.map(a => [[false,false],[false,true],[true,false],[true,true]].map(([b,l]) => robotSprite(a,b,l)));
+const robotFrame = (i, t) => ROBOTS[i][((t*3.3+i*.37)%11 < .4 ? 2 : 0) + (Math.floor(t*6+i)%2)];
+
+// element tiles with a tiny 5px-tall pixel font
+const GLYPH = {H:['101','101','111','101','101'], O:['111','101','101','101','111'], C:['111','100','100','100','111'],
+  N:['1001','1101','1011','1001','1001'], a:['000','011','101','101','011'], l:['1','1','1','1','1']};
+const ELEM = {
+  H:{b:'#e8eef8',l:'#ffffff',d:'#9aa6c4',f:'#16204f'},
+  O:{b:'#ff3b5c',l:'#ff8099',d:'#a3203a',f:'#f4f8ff'},
+  C:{b:'#4a4f63',l:'#70768e',d:'#2a2d3a',f:'#f4f8ff'},
+  N:{b:'#2f7bff',l:'#7fb0ff',d:'#1a46a3',f:'#f4f8ff'},
+  Na:{b:'#a35cff',l:'#c799ff',d:'#6a2fb8',f:'#f4f8ff'},
+  Cl:{b:'#5ee05e',l:'#a4f5a4',d:'#2f8f3a',f:'#16204f'},
+};
+const TILE = {};
+for (const [sym, c] of Object.entries(ELEM)){
+  const t = disc(6, (dx,dy,d) => d>6 ? null : d>5 ? c.d : (-dx-dy)>5 ? c.l : c.b);
+  const x = t.getContext('2d'); x.fillStyle = c.f;
+  const gl = [...sym].map(ch => GLYPH[ch]);
+  const w = gl.reduce((s,g)=>s+g[0].length,0) + gl.length-1;
+  let ox = Math.round((t.width-w)/2);
+  for (const g of gl){ g.forEach((row,j)=>{ for (let i=0;i<row.length;i++) if (row[i]==='1') x.fillRect(ox+i, 4+j, 1, 1); }); ox += g[0].length+1; }
+  TILE[sym] = t;
+}
+
+/* ================= audio ================= */
+let AC = null;
+function audioOn(){
+  if (!AC){ try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
+  if (AC && AC.state==='suspended') AC.resume().catch(()=>{});
+}
+function tone(f, d, type='square', v=.05, f2){
+  if (SAVE.mute || !AC) return;
+  const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,t); if (f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
+  g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d+.02);
+}
+function noise(d, v=.18){
+  if (SAVE.mute || !AC) return;
+  const n=(AC.sampleRate*d)|0, b=AC.createBuffer(1,n,AC.sampleRate), a=b.getChannelData(0);
+  for (let i=0;i<n;i++) a[i]=(Math.random()*2-1)*(1-i/n);
+  const s=AC.createBufferSource(), g=AC.createGain(); s.buffer=b; g.gain.value=v; s.connect(g); g.connect(AC.destination); s.start();
+}
+const arp = (fs, gap=80, d=.12) => fs.forEach((f,i)=>setTimeout(()=>tone(f,d,'square',.045),i*gap));
+const sfx = {
+  click: () => tone(660,.05,'square',.04),
+  start: () => tone(180,.45,'square',.05,720),
+  pick:  () => tone(880,.08,'square',.045,1400),
+  fact:  () => arp([523,659,784,1047]),
+  make:  () => arp([659,988],70),
+  wrong: () => tone(160,.28,'square',.06,70),
+  heal:  () => arp([784,1047,1319],60,.1),
+  launch:() => tone(300,.16,'square',.04,900),
+  cool:  () => { noise(.3,.07); tone(1200,.2,'sine',.03,400); },
+  crash: () => { noise(.55,.22); tone(220,.5,'sawtooth',.05,40); },
+  empty: () => tone(440,.6,'triangle',.07,60),
+  rec:   () => arp([784,988,1175,1568],110,.14),
+  clear: () => arp([523,659,784,1047,1319,1568],90,.16),
+};
+
+/* ================= shared scenery ================= */
+const STARS = Array.from({length:60}, () => ({x:Math.random()*W, y:Math.random()*440, z:rnd(.2,1), p:Math.random()*6}));
+function stepStars(speed, dt){
+  for (const s of STARS){ s.y += speed*s.z*.25*dt; if (s.y>H){ s.y -= H+2; s.x = Math.random()*W; } }
+}
+function drawStars(alpha, t){
+  if (alpha<=0) return;
+  for (const s of STARS){
+    ctx.globalAlpha = alpha*(.6+.4*Math.sin(t*3+s.p))*(.4+.6*s.z);
+    ctx.fillStyle = s.z>.85 ? '#ffd23a' : '#f4f8ff';
+    ctx.fillRect(s.x|0, s.y|0, 1, 1);
+    if (s.z>.93){ ctx.fillRect((s.x|0)-1, s.y|0, 3, 1); ctx.fillRect(s.x|0, (s.y|0)-1, 1, 3); }
+  }
+  ctx.globalAlpha = 1;
+}
+function burst(x,y,n,cols,sp,life){
+  for (let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=rnd(sp*.3,sp);
+    S.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(life*.5,life),max:life,c:pick(cols),s:Math.random()<.3?2:1}); }
+}
+
+/* =====================================================================
+   GAME 1 — ロケット・ライズ (宇宙)
+   ===================================================================== */
+const R_STOPS = [[0,0],[700,10],[900,12],[1500,25],[2200,50],[2700,80],[3200,100],[4000,400],
+  [4900,2000],[6100,20200],[7300,35786],[9200,384400],[12500,55000000]];
+const R_FACTS = [
+  {km:10, t:'旅客機の高さ', b:'旅客機は高度およそ10kmを飛ぶ。外の気温は約-50℃。'},
+  {km:12, t:'成層圏に突入', b:'雲や雨などの天気は、ほとんどが下の「対流圏」で起きている。'},
+  {km:25, t:'オゾン層', b:'高度20〜30km付近はオゾンが多く、太陽の有害な紫外線を吸収している。'},
+  {km:50, t:'中間圏', b:'ここから上は高いほど寒くなる。高度80km付近は-90℃前後。'},
+  {km:80, t:'流れ星の高さ', b:'流れ星の多くは高度70〜120kmで光る。宇宙のちりが空気とぶつかって高温になるため。'},
+  {km:100, t:'カーマン・ライン', b:'高度100km。ここが「宇宙の入り口」とされることが多い。'},
+  {km:400, t:'国際宇宙ステーション', b:'ISSは高度約400kmを、約90分で地球1周している。'},
+  {km:2000, t:'低軌道の上限', b:'高度2000kmまでを「低軌道」と呼ぶ。多くの人工衛星がここを回る。'},
+  {km:20200, t:'GPS衛星', b:'スマホの位置情報に使うGPS衛星は、高度約2万kmを回っている。'},
+  {km:35786, t:'静止軌道', b:'ここの衛星は地球の自転と同じ速さで回るので、地上からは止まって見える。'},
+  {km:384400, t:'月に到着', b:'地球から月まで平均約38万km。光の速さでも約1.3秒かかる。'},
+  {km:55000000, t:'火星', b:'火星は地球に最も近づくときで約5500万km。光でも3分以上かかる。'},
+];
+const SKY = [[0,'#4fb6ff'],[1.05,'#2a6fd6'],[1.75,'#13307a'],[2.05,'#0b1440'],[3,'#070b2b']].map(([t,c])=>[t,hex(c)]);
+function skyColor(km){
+  const t = Math.log10(km+1);
+  for (let i=1;i<SKY.length;i++) if (t<=SKY[i][0]){
+    const [t0,a]=SKY[i-1],[t1,b]=SKY[i];
+    return `rgb(${mix(a,b,(t-t0)/(t1-t0)).map(Math.round).join(',')})`;
+  }
+  return 'rgb(7,11,43)';
+}
+const rZone = k => k<12?'対流圏':k<50?'成層圏':k<85?'中間圏':k<600?'熱圏':k<384400?'宇宙空間':k<55000000?'月の向こう':'深宇宙';
+const RY = () => Math.round(H*.74);
+
+const Rocket = {
+  id:'rocket', short:'ロケット', title:'ロケット・ライズ', cat:'宇宙のひみつ', sub:'障害物をよけて、月まで行けるかな？', icon:ROCKET,
+  steer:true, scoreLabel:'到達高度', fmt:fmtKm,
+  tune: {
+    easy:   {speed:.8,  drain:.7,  spawn:1.35},
+    normal: {speed:1,   drain:1,   spawn:1},
+    hard:   {speed:1.15,drain:1.2, spawn:.8},
+  },
+  hint:'どこでもいいので指を置いて<br>左右にスライドしてよけよう<br>光る原子で燃料が回復',
+  facts: R_FACTS.map(f => ({k:fmtKm(f.km), t:f.t, b:f.b})),
+  lockHint: i => `高度 ${fmtKm(R_FACTS[i].km)} まで行くと見つかる`,
+  reasons: {crash:['CRASH!','障害物にぶつかった'], fuel:['NO FUEL','燃料切れ。光る原子を集めよう']},
+  share: s => `「ロケット・ライズ」で高度 ${fmtKm(s)} まで到達！`,
+
+  start(){
+    Object.assign(S, {dist:0, km:0, speed:30, fuel:100, obs:[], atoms:[], clouds:[], spawnT:1.8, atomT:1.0, cloudT:0, fi:0});
+    for (let i=0;i<5;i++) S.clouds.push({x:rnd(-10,W), y:rnd(0,H*.6), w:Math.round(rnd(12,26)), sp:rnd(.4,.7)});
+  },
+  spawnObs(){
+    const k = S.km; let type;
+    if (k<3) type='bird';
+    else if (k<12) type = Math.random()<.55 ? 'plane' : 'bird';
+    else if (k<50) type='balloon';
+    else if (k<100) type='meteor';
+    else if (k<2000) type = Math.random()<.6 ? 'debris' : 'sat';
+    else if (k<384400) type = Math.random()<.5 ? 'sat' : 'rock';
+    else type = Math.random()<.6 ? 'rock' : 'meteor';
+    const dir = Math.random()<.5 ? -1 : 1;
+    let o;
+    switch (type){
+      case 'bird': o={type, x:rnd(10,W-10), y:-8, vx:dir*rnd(12,28), vy:0, hw:3, hh:2}; break;
+      case 'plane': o={type, x:dir>0?-10:W+10, y:rnd(-10,H*.35), vx:dir*rnd(38,58), vy:0, hw:6, hh:2}; break;
+      case 'balloon': o={type, x:rnd(8,W-8), y:-12, vx:0, vy:-12, hw:3, hh:4, ph:Math.random()*6}; break;
+      case 'meteor': o={type, x:rnd(0,W), y:-10, vx:rnd(-28,28), vy:rnd(45,80), hw:2, hh:2}; break;
+      case 'debris': o={type, x:rnd(4,W-4), y:-6, vx:rnd(-25,25), vy:rnd(-5,10), hw:1.5, hh:1.5}; break;
+      case 'sat': o={type, x:dir>0?-10:W+10, y:rnd(-10,H*.4), vx:dir*rnd(22,38), vy:0, hw:7, hh:2}; break;
+      case 'rock': { const R = pick(ROCKS);
+        o={type, x:rnd(10,W-10), y:-R.r-4, vx:rnd(-12,12), vy:rnd(-5,12), hw:R.r*.72, hh:R.r*.72, img:R.img}; break; }
+    }
+    S.obs.push(o);
+  },
+  update(dt){
+    const ry = RY();
+    const P = this.tune[S.diff];
+    if (!S.dead){
+      const target = (62 + Math.min(80, S.dist/100)) * P.speed;
+      S.speed += (target-S.speed)*Math.min(1, dt*1.2);
+      S.dist += S.speed*dt;
+      S.km = S.score = atStops(R_STOPS, S.dist);
+      S.x += (S.tx-S.x)*Math.min(1, dt*12);
+      S.fuel -= 6*P.drain*dt;
+      if (S.fuel<=0){ S.fuel=0; die('fuel', S.x, ry, sfx.empty); }
+      S.spawnT -= dt;
+      if (S.spawnT<=0){ this.spawnObs(); S.spawnT = Math.max(.42, 1.25 - S.dist/11000) * P.spawn * rnd(.7,1.3); }
+      S.atomT -= dt;
+      if (S.atomT<=0){ S.atoms.push({x:rnd(10,W-10), y:-8, ph:Math.random()*6}); S.atomT = rnd(.85,1.45); }
+      if (S.km<10){ S.cloudT -= dt; if (S.cloudT<=0){ S.clouds.push({x:rnd(-10,W), y:-12, w:Math.round(rnd(12,28)), sp:rnd(.4,.7)}); S.cloudT=rnd(.6,1.4);} }
+      while (S.fi<R_FACTS.length && S.km>=R_FACTS[S.fi].km){ discover(S.fi); S.fi++; }
+      for (let i=0;i<2;i++) S.parts.push({x:S.x+rnd(-2,2), y:ry+8, vx:rnd(-8,8), vy:rnd(40,70)+S.speed*.4, life:rnd(.15,.35), max:.35,
+        c:pick(['#ffd23a','#ff9a3a','#ff3b5c']), s:Math.random()<.4?2:1});
+    } else {
+      S.speed *= Math.pow(.15, dt);
+    }
+    for (const o of S.obs){ o.x += o.vx*dt; o.y += (S.speed+o.vy)*dt; if (o.type==='balloon') o.x += Math.sin(S.t*2+o.ph)*6*dt; }
+    S.obs = S.obs.filter(o => o.y<H+30 && o.x>-30 && o.x<W+30);
+    for (const a of S.atoms) a.y += S.speed*dt;
+    S.atoms = S.atoms.filter(a => a.y<H+10);
+    for (const c of S.clouds) c.y += S.speed*c.sp*dt;
+    S.clouds = S.clouds.filter(c => c.y<H+20);
+    stepStars(S.speed, dt);
+    if (S.dead) return;
+    for (const o of S.obs){
+      if (Math.abs(o.x-S.x) < o.hw+3 && Math.abs(o.y-ry) < o.hh+5){ die('crash', S.x, ry, sfx.crash); return; }
+    }
+    S.atoms = S.atoms.filter(a => {
+      if (Math.abs(a.x-S.x)<8 && Math.abs(a.y-ry)<10){
+        S.fuel = Math.min(100, S.fuel+18); sfx.pick();
+        burst(a.x, a.y, 10, ['#3ee6ff','#ffd23a','#f4f8ff'], 50, .45);
+        return false;
+      }
+      return true;
+    });
+  },
+  render(t){
+    ctx.fillStyle = skyColor(S.km); ctx.fillRect(-8,-8,W+16,H+16);
+    drawStars(clamp(Math.log10(S.km+1)-1, 0, 1), t);
+    if (S.km>85 && S.km<900){
+      const a = Math.min(1,(S.km-85)/60) * Math.min(1,(900-S.km)/300);
+      for (let x=0;x<W;x++){
+        const y = Math.round(26 + Math.sin(x*.07+t*1.4)*7 + Math.sin(x*.15-t)*3);
+        ctx.fillStyle = `rgba(94,224,94,${(.45*a).toFixed(3)})`; ctx.fillRect(x,y,1,7);
+        ctx.fillStyle = `rgba(62,230,255,${(.22*a).toFixed(3)})`; ctx.fillRect(x,y+7,1,10);
+      }
+    }
+    const body = (img, at, xf) => { const y = (S.dist-at)*.35 + H*.28;
+      if (y > -img.height && y < H+img.height) ctx.drawImage(img, Math.round(W*xf-img.width/2), Math.round(y-img.height/2)); };
+    body(MOON, 9200, .7); body(MARS, 12500, .3);
+    ctx.fillStyle = 'rgba(244,248,255,.85)';
+    for (const c of S.clouds){ const x=Math.round(c.x), y=Math.round(c.y), w=c.w;
+      ctx.fillRect(x, y+3, w, 4); ctx.fillRect(x+3, y, w-8, 4); ctx.fillRect(x+(w*.4|0), y-2, w*.35|0, 3); }
+    const gy = Math.round(RY()+8+S.dist);
+    if (gy<H){
+      ctx.fillStyle = '#1d3f9a';
+      [[4,10],[12,16],[22,8],[30,20],[40,12],[100,14],[110,22],[120,10],[130,17]].forEach(([x,h]) => ctx.fillRect(x, gy-h, 7, h));
+      ctx.fillStyle = '#2f8f3a'; ctx.fillRect(0, gy, W, H-gy);
+      ctx.fillStyle = '#5ee05e'; ctx.fillRect(0, gy, W, 2);
+      ctx.fillStyle = '#8a9bc4'; ctx.fillRect(W/2-12, gy-2, 24, 2);
+      const tx = W/2+9; ctx.fillStyle = '#ff3b5c';
+      ctx.fillRect(tx, gy-28, 1, 26); ctx.fillRect(tx+4, gy-28, 1, 26);
+      for (let y=gy-26;y<gy-2;y+=4) ctx.fillRect(tx, y, 5, 1);
+    }
+    for (const a of S.atoms) ctx.drawImage(ATOM, Math.round(a.x)-4, Math.round(a.y)-3+Math.round(Math.sin(t*5+a.ph)));
+    for (const o of S.obs) this.drawObs(o, t);
+    if (!S.dead){
+      const X = Math.round(S.x)-5, Y = RY()-7;
+      ctx.drawImage(ROCKET, X, Y);
+      const f = 2 + ((t*30)|0)%3;
+      ctx.fillStyle = '#ffd23a'; ctx.fillRect(X+4, Y+14, 3, f);
+      ctx.fillStyle = '#ff9a3a'; ctx.fillRect(X+5, Y+14+f, 1, 2);
+    }
+  },
+  drawObs(o, t){
+    const X = Math.round(o.x), Y = Math.round(o.y);
+    switch (o.type){
+      case 'bird': ctx.drawImage(BIRD[((t*6)|0)%2], X-3, Y-2); break;
+      case 'plane': case 'sat': { const im = o.type==='plane'?PLANE:SAT;
+        ctx.save(); ctx.translate(X, Y); if (o.vx<0) ctx.scale(-1,1); ctx.drawImage(im, -Math.round(im.width/2), -Math.round(im.height/2)); ctx.restore(); break; }
+      case 'balloon': ctx.drawImage(BALLOON, X-3, Y-5); break;
+      case 'meteor': {
+        const m = Math.hypot(o.vx, o.vy+S.speed) || 1, ux = o.vx/m, uy = (o.vy+S.speed)/m;
+        const cols = ['#ffd23a','#ff9a3a','#ff9a3a','#ff3b5c','#ff3b5c','#7a2a1c'];
+        for (let k=6;k>=1;k--){ ctx.fillStyle = cols[k-1]; ctx.fillRect(Math.round(X-ux*k*2)-1, Math.round(Y-uy*k*2)-1, 2, 2); }
+        ctx.fillStyle = '#f4f8ff'; ctx.fillRect(X-1, Y-1, 3, 3); break; }
+      case 'debris': ctx.fillStyle = '#8a9bc4'; ctx.fillRect(X-1, Y-1, 3, 2); ctx.fillStyle='#f4f8ff'; ctx.fillRect(X-1, Y-1, 1, 1); break;
+      case 'rock': ctx.drawImage(o.img, X-Math.round(o.img.width/2), Y-Math.round(o.img.height/2)); break;
+    }
+  },
+  hud(){ return {main:fmtKm(S.km), chip:rZone(S.km), label:'燃料', pct:S.fuel, kind:'', warn:S.fuel<25}; },
+};
+
+/* =====================================================================
+   GAME 2 — 元素キャッチ (科学)
+   ===================================================================== */
+const MOLS = [
+  {f:['H','H'], fm:'H₂', t:'水素', b:'宇宙でいちばん多い元素。H₂はいちばん軽い気体。'},
+  {f:['O','O'], fm:'O₂', t:'酸素', b:'空気の約21%が酸素。わたしたちは呼吸で取りこんでいる。'},
+  {f:['H','H','O'], fm:'H₂O', t:'水', b:'水素2つと酸素1つ。氷は水より軽いので、水に浮く。'},
+  {f:['N','N'], fm:'N₂', t:'窒素', b:'空気の約78%は窒素。空気でいちばん多い気体。'},
+  {f:['C','O','O'], fm:'CO₂', t:'二酸化炭素', b:'植物は光合成でCO₂を取りこみ、酸素を出している。'},
+  {f:['H','Cl'], fm:'HCl', t:'塩化水素', b:'水に溶かすと塩酸になる。胃液にも塩酸が含まれている。'},
+  {f:['Na','Cl'], fm:'NaCl', t:'食塩', b:'ナトリウムも塩素も単体では危険なのに、くっつくと食塩になる。'},
+  {f:['O','O','O'], fm:'O₃', t:'オゾン', b:'酸素原子3つ。上空のオゾン層が太陽の紫外線を吸収している。'},
+  {f:['C','H','H','H','H'], fm:'CH₄', t:'メタン', b:'都市ガスの主成分。牛のげっぷにも含まれている。'},
+  {f:['N','H','H','H'], fm:'NH₃', t:'アンモニア', b:'鼻をつくにおいの気体。肥料の原料として大量に作られている。'},
+];
+const ELEMS = Object.keys(ELEM);
+const HEART_ITEM = spr(['.RRR...RRR.','RRWRR.RRRRR','RWRRRRRRRRR','RRRRRRRRRRR','RRRRRRRRRRR',
+  '.RRRRRRRRR.','..RRRRRRR..','...RRRRR...','....RRR....','.....R.....']);
+const BY = () => H-40;   // beaker top
+
+const Element = {
+  id:'element', short:'元素', title:'元素キャッチ', cat:'科学のなぜ？', sub:'必要な原子だけ集めて、分子をつくろう', icon:TILE.O,
+  steer:true, scoreLabel:'つくった分子', fmt: s => `${Math.floor(s)} こ`,
+  tune: {
+    easy:   {fall:.75, spawn:1.3,  heart:.14, driftFrom:5},
+    normal: {fall:1,   spawn:1,    heart:.07, driftFrom:2},
+    hard:   {fall:1.2, spawn:.85,  heart:.03, driftFrom:0},
+  },
+  hint:'指を置いて左右にスライド<br>下に出ている原子だけキャッチ<br>ちがう原子はよけよう<br>落ちてくるハートでライフ回復',
+  facts: MOLS.map(m => ({k:m.fm, t:m.t, b:m.b})),
+  lockHint: i => `原子${MOLS[i].f.length}こでできる分子をつくると見つかる`,
+  reasons: {wrong:['MISS!','ちがう原子を3回キャッチした']},
+  share: s => `「元素キャッチ」で分子を ${Math.floor(s)} こつくった！`,
+
+  start(){
+    Object.assign(S, {items:[], hearts:3, made:0, spawnT:.8, beat:0, flash:0, bubbles:[], fall:38});
+    this.setRecipe(0);
+  },
+  setRecipe(i){ S.mi = i; S.mol = MOLS[i]; S.filled = S.mol.f.map(()=>false); },
+  update(dt){
+    S.x += (S.tx-S.x)*Math.min(1, dt*14);
+    S.flash = Math.max(0, S.flash-dt*2);
+    if (Math.random()<dt*2) S.bubbles.push({x:rnd(0,W), y:H+4, v:rnd(8,20)});
+    for (const b of S.bubbles) b.y -= b.v*dt;
+    S.bubbles = S.bubbles.filter(b => b.y>-4);
+    for (const it of S.items){
+      it.y += it.vy*dt; it.x += (it.vx + Math.sin(S.t*2+it.ph)*4)*dt;
+      if (it.x<7 || it.x>W-7){ it.vx = -it.vx; it.x = clamp(it.x, 7, W-7); }
+    }
+    S.items = S.items.filter(it => it.y<H+10);
+    if (S.dead) return;
+
+    if (S.beat>0){
+      S.beat -= dt;
+      if (S.beat<=0) this.setRecipe(S.made<MOLS.length ? S.made : (Math.random()*MOLS.length)|0);
+      return;
+    }
+    // difficulty: faster falls, more wrong atoms, and sideways drift from the 3rd molecule
+    const P = this.tune[S.diff];
+    S.fall = (52 + Math.min(70, S.made*6)) * P.fall;
+    S.spawnT -= dt;
+    if (S.spawnT<=0){
+      const left = S.mol.f.filter((s,k)=>!S.filled[k]);
+      let sym = Math.random() < Math.max(.28, .42 - S.made*.015) ? pick(left) : pick(ELEMS.filter(e => !left.includes(e)));
+      // now and then a heart falls while a life is missing
+      if (S.hearts<3 && Math.random()<P.heart && !S.items.some(it => it.sym==='heart')) sym = 'heart';
+      const drift = S.made>=P.driftFrom ? rnd(-1,1)*Math.min(30, 8+S.made*3) : 0;
+      S.items.push({sym, x:rnd(9,W-9), y:-8, vx:drift, vy:S.fall*rnd(.8,1.25), ph:Math.random()*6});
+      S.spawnT = Math.max(.3, .7 - S.made*.035) * P.spawn * rnd(.75,1.25);
+    }
+    const by = BY();
+    S.items = S.items.filter(it => {
+      if (it.y+5 < by || it.y > by+6 || Math.abs(it.x-S.x) > 8) return true;
+      if (it.sym==='heart'){
+        S.hearts = Math.min(3, S.hearts+1); sfx.heal();
+        burst(it.x, by, 14, ['#ff3b5c','#ff8fb8','#f4f8ff'], 50, .5);
+        return false;
+      }
+      const k =S.mol.f.findIndex((s,j)=>s===it.sym && !S.filled[j]);
+      if (k>=0){
+        S.filled[k] = true; sfx.pick();
+        burst(it.x, by, 8, [ELEM[it.sym].b,'#f4f8ff'], 40, .4);
+      } else {
+        S.hearts--; S.flash = .45; S.shake = 3; sfx.wrong();
+        burst(it.x, by, 10, ['#ff3b5c','#16204f'], 45, .4);
+        if (S.hearts<=0) die('wrong', S.x, by, null);
+      }
+      return false;
+    });
+    if (!S.dead && S.filled.every(Boolean)){
+      S.made++; S.score = S.made; S.beat = 1.6;
+      for (const it of S.items) burst(it.x, it.y, 4, ['#3ee6ff','#f4f8ff'], 25, .3);
+      S.items = [];
+      burst(S.x, by, 30, ['#ffd23a','#3ee6ff','#ff5fa2','#f4f8ff'], 70, .8);
+      if (!S.foundRun.includes(S.mi)) discover(S.mi); else sfx.make();
+    }
+  },
+  render(t){
+    ctx.fillStyle = '#0d1850'; ctx.fillRect(-8,-8,W+16,H+16);
+    ctx.fillStyle = '#142466';
+    const off = Math.floor(t*6)%12;
+    for (let x=0;x<W;x+=12) ctx.fillRect(x,0,1,H);
+    for (let y=off-12;y<H;y+=12) ctx.fillRect(0,y,W,1);
+    ctx.fillStyle = 'rgba(62,230,255,.35)';
+    for (const b of S.bubbles) ctx.fillRect(Math.round(b.x), Math.round(b.y), 2, 2);
+    for (const it of S.items){
+      if (it.sym==='heart'){
+        if (((t*6)|0)%2){ ctx.fillStyle = 'rgba(255,143,184,.35)'; ctx.fillRect(Math.round(it.x)-7, Math.round(it.y)-6, 15, 13); }
+        ctx.drawImage(HEART_ITEM, Math.round(it.x)-5, Math.round(it.y)-5);
+      } else ctx.drawImage(TILE[it.sym], Math.round(it.x)-7, Math.round(it.y)-7);
+    }
+
+    // beaker
+    const bx = Math.round(S.x)-10, by = BY(), bw = 21, bh = 16;
+    const n = S.mol.f.length, got = S.filled.filter(Boolean).length;
+    const lvl = Math.round((bh-3) * (S.beat>0 ? 1 : got/n));
+    if (lvl>0){
+      ctx.fillStyle = '#ff5fa2'; ctx.fillRect(bx+1, by+bh-1-lvl, bw-2, lvl);
+      ctx.fillStyle = '#ff9ccb'; ctx.fillRect(bx+1, by+bh-1-lvl, bw-2, 1);
+      if (S.beat>0){ ctx.fillStyle='#f4f8ff'; for (let i=0;i<4;i++) ctx.fillRect(bx+3+((i*5+((t*20)|0))%(bw-6)), by+bh-3-((t*30+i*7)%lvl|0), 1, 1); }
+    }
+    ctx.fillStyle = '#3ee6ff';
+    ctx.fillRect(bx, by, 1, bh); ctx.fillRect(bx+bw-1, by, 1, bh); ctx.fillRect(bx, by+bh-1, bw, 1);
+    ctx.fillRect(bx-1, by, 2, 1); ctx.fillRect(bx+bw-1, by, 2, 1);
+    ctx.fillStyle = '#f4f8ff'; ctx.fillRect(bx+2, by+3, 1, 6);
+
+    // recipe under the beaker
+    const tw = n*14 + (n-1)*2, x0 = Math.round((W-tw)/2), ry = H-21;
+    ctx.fillStyle = '#0b1440'; ctx.fillRect(x0-4, ry-2, tw+8, 18);
+    ctx.fillStyle = '#ffd23a'; ctx.fillRect(x0-4, ry-2, tw+8, 1); ctx.fillRect(x0-4, ry+15, tw+8, 1);
+    ctx.fillRect(x0-4, ry-2, 1, 18); ctx.fillRect(x0+tw+3, ry-2, 1, 18);
+    S.mol.f.forEach((sym,k) => {
+      ctx.globalAlpha = S.filled[k] ? 1 : .3;
+      ctx.drawImage(TILE[sym], x0+k*16, ry);
+      ctx.globalAlpha = 1;
+    });
+    if (S.flash>0){ ctx.fillStyle = `rgba(255,59,92,${(S.flash*.5).toFixed(3)})`; ctx.fillRect(-8,-8,W+16,H+16); }
+  },
+  hud(){
+    return {main:`${S.made} こ`, chip:`つくろう：${S.mol.t} ${S.mol.fm}`, label:null, hearts:Math.max(0,S.hearts), maxHearts:3};
+  },
+};
+
+/* =====================================================================
+   GAME 3 — 地球ほりほり (地球)
+   ===================================================================== */
+const D_STOPS = [[0,0],[350,1],[800,4],[1400,12.3],[2000,35],[2700,660],[3700,2900],[4600,5100],[5300,6371],
+  [6000,7642],[6900,9842],[7900,12707],[8300,12742]];
+const D_FACTS = [
+  {km:1, t:'地下は熱い', b:'地下は深くなるほど熱くなる。1km下がるごとに平均で約25〜30℃上がる。'},
+  {km:4, t:'世界一深い鉱山', b:'南アフリカの金鉱山は深さ約4km。坑内の岩は約60℃にもなる。'},
+  {km:12.3, t:'人類が掘った最深の穴', b:'ロシアのコラ超深度掘削坑は約12.3km。それでも地球の半径の0.2%ほど。'},
+  {km:35, t:'モホ面', b:'大陸の地殻の厚さは平均約35km。ここから下はマントル。'},
+  {km:660, t:'マントルの中', b:'マントルは地球の体積の約8割をしめる、熱い岩石の層。ゆっくり動いている。'},
+  {km:2900, t:'外核', b:'外核はドロドロに溶けた鉄。この流れが地球の磁場を生んでいる。'},
+  {km:5100, t:'内核', b:'内核は固体の鉄。温度は約5000〜6000℃で、太陽の表面と同じくらい。'},
+  {km:6371, t:'地球の中心', b:'地球の中心の圧力は約360万気圧。ここからは上り坂。'},
+  {km:12742, t:'地球の裏側', b:'地球の直径は約12,742km。日本の真裏は、ブラジル沖の大西洋。'},
+];
+const DY = () => Math.round(H*.3);
+const C_SOIL=hex('#8a5a3c'), C_CRUST=hex('#6b5a52'), C_MAN1=hex('#963c28'), C_MAN2=hex('#d9622b'), C_OUT=hex('#ff9a3a'), C_IN=hex('#ffd23a');
+function dZone(km){
+  const k = km>6371 ? 12742-km : km;
+  return k<35 ? '地殻' : k<2900 ? 'マントル' : k<5100 ? '外核' : '内核';
+}
+function earthRGB(km){
+  const k = km>6371 ? 12742-km : km;
+  if (k<1) return C_SOIL;
+  if (k<35) return C_CRUST;
+  if (k<2900) return mix(C_MAN1, C_MAN2, (k-35)/2865);
+  if (k<5100) return C_OUT;
+  return C_IN;
+}
+const END_D = 8300, SEA = 50;   // far side: seabed at END_D, then ocean, then open sky (upside down)
+
+const Dig = {
+  id:'dig', short:'ほりほり', title:'地球ほりほり', cat:'地球のふしぎ', sub:'熱に注意して、地球の裏側までほり進め', icon:DRILL[0],
+  steer:false, scoreLabel:'ほった深さ', fmt:fmtDepth,
+  // tuned with a simulated player (clear rate for a quick-reacting player ≈ easy 100% / normal 25% / hard 8%)
+  tune: {
+    easy:   {time:30, bonus:7, heat:28, cool:40, hotv:.5},
+    normal: {time:26, bonus:6, heat:30, cool:38, hotv:.35},
+    hard:   {time:26, bonus:6, heat:31, cool:37, hotv:.35},
+  },
+  hint:'画面を押しているあいだ掘り進む<br>まわりが赤く光ったら指を離して冷やそう<br>しま模様の固い岩はすぐ熱くなる！',
+  facts: D_FACTS.map(f => ({k:fmtDepth(f.km), t:f.t, b:f.b})),
+  lockHint: i => `深さ ${fmtDepth(D_FACTS[i].km)} まで掘ると見つかる`,
+  reasons: {heat:['OVERHEAT','ドリルが熱くなりすぎた。ときどき指を離して冷やそう'], time:['TIME UP','時間切れ。発見するたびに時間が増えるよ'], clear:['CLEAR!','地球をつらぬいて裏側に出た！']},
+  share: s => s>=12742 ? '「地球ほりほり」で地球の裏側まで掘りぬいた！' : `「地球ほりほり」で深さ ${fmtDepth(s)} まで掘った！`,
+
+  start(){
+    Object.assign(S, {dist:0, km:0, heat:0, time:this.tune[S.diff].time, started:false, clearing:false, splashed:false, warnT:0, v:0, seed:Math.random()*100, waters:[], nextW:300, fi:0, decos:[], nextD:6});
+  },
+  // rock hardness 0.5 (soft) … 2.0 (very hard); hard bands heat the drill much faster
+  hard(d){
+    const h = .5 + 1.5*clamp(.45 + .95*Math.sin(d*.011+S.seed)*Math.sin(d*.0037+S.seed*1.7), 0, 1);
+    return d<180 ? Math.min(h, .8) : h;   // soft topsoil so the first seconds are a warm-up
+  },
+  update(dt){
+    const dy = DY();
+    const P = this.tune[S.diff];
+    while (S.nextW < S.dist + H*1.5){ if (S.nextW < END_D-10) S.waters.push({d:S.nextW, used:false}); S.nextW += rnd(320,520); }
+    S.waters = S.waters.filter(w => w.d > S.dist - dy - 10);
+    while (S.nextD < S.dist + H*1.5){
+      const d = S.nextD;
+      S.nextD += rnd(22,55);
+      if (d >= END_D+SEA || (d >= END_D-8 && d < END_D)) continue;
+      const type = d >= END_D ? 'fish' : pick(decoTypes(atStops(D_STOPS, d)));
+      const side = Math.random()<.5 ? rnd(4, W/2-16) : rnd(W/2+12, W-22);
+      S.decos.push({d, x:Math.round(side), type, ph:Math.random()*6, flip:Math.random()<.5});
+    }
+    S.decos = S.decos.filter(o => o.d > S.dist - dy - 20);
+    if (S.dead) return;
+    if (S.clearing){ this.breakThrough(dt, dy); return; }
+    const vmax = 95 + S.dist*.03;
+    if (input.hold){
+      // an overheated drill bites slowly: pushing through the warning costs time
+      const vm = S.heat>75 ? vmax*P.hotv : vmax;
+      S.v += (vm-S.v)*Math.min(1, dt*8);
+      // heat climbs fast at first but slows down once the warning is up, so there is time to react
+      const rate = P.heat*Math.pow(this.hard(S.dist+6), 1.5);
+      S.heat += (S.heat<75 ? rate : Math.min(rate*.3, 14))*dt;
+      // at 100 the drill holds out a little longer before it blows
+      S.melt = S.heat>=100 ? (S.melt||0) + dt : 0;
+    } else {
+      S.melt = 0;
+      S.v += (0-S.v)*Math.min(1, dt*10);
+      S.heat -= P.cool*dt;
+    }
+    S.heat = clamp(S.heat, 0, 100);
+    S.dist += S.v*dt;
+    S.km = Math.min(12742, atStops(D_STOPS, S.dist));
+    S.score = S.km;
+    if (input.hold) S.started = true;      // the clock starts on the first touch
+    if (S.started) S.time -= dt;
+    while (S.fi<D_FACTS.length && S.km>=D_FACTS[S.fi].km){
+      if (D_FACTS[S.fi].km < 12742){ S.time += P.bonus; discover(S.fi, `  +${P.bonus}秒`); flashPlus(`+${P.bonus}秒`); }
+      else discover(S.fi);
+      S.fi++;
+    }
+    for (const w of S.waters){
+      if (!w.used && Math.abs(w.d - S.dist) < 7){
+        w.used = true; S.heat = Math.max(0, S.heat-25); sfx.cool();
+        burst(W/2, dy+6, 14, ['#3ee6ff','#2f7bff','#f4f8ff'], 45, .5);
+      }
+    }
+    if (S.v>10 && Math.random()<.8){
+      const c = earthRGB(S.km);
+      S.parts.push({x:W/2+rnd(-5,5), y:dy+10, vx:rnd(-40,40), vy:rnd(-50,-10), life:rnd(.2,.45), max:.45, c:`rgb(${c.map(v=>Math.min(255,v*1.25)|0).join(',')})`, s:1});
+    }
+    if (S.heat>75){ S.warnT -= dt; if (S.warnT<=0){ tone(1040,.07,'square',.04); S.warnT = S.heat>=100 ? .12 : .3; } } else S.warnT = 0;
+    if (S.heat>70 && Math.random()<.5) S.parts.push({x:W/2+rnd(-4,4), y:dy-4, vx:rnd(-6,6), vy:rnd(-30,-15), life:.5, max:.5, c:'#f4f8ff', s:1});
+    if (S.dist>=END_D){
+      // reached the far side: the clock stops and the drill bursts out through the sea into the sky
+      S.clearing = true; S.clearT = 0; S.km = S.score = 12742; S.heat = 0; S.melt = 0;
+      flashPlus('貫通！'); sfx.rec();
+      return;
+    }
+    if (S.melt>=.8){ die('heat', W/2, dy+4, sfx.crash); return; }
+    if (S.time<=0){ S.time = 0; die('time', W/2, dy, sfx.empty, true); }
+  },
+  breakThrough(dt, dy){
+    S.clearT += dt;
+    S.v = S.clearT < 2.8 ? 150 : S.v*Math.pow(.2, dt);
+    S.dist += S.v*dt;
+    const inSea = S.dist >= END_D && S.dist < END_D+SEA;
+    if (inSea && Math.random()<.6) S.parts.push({x:W/2+rnd(-6,6), y:dy+rnd(-4,10), vx:rnd(-10,10), vy:rnd(-60,-30), life:.6, max:.6, c:'#bfe9ff', s:1});
+    if (!S.splashed && S.dist >= END_D+SEA){
+      S.splashed = true; S.shake = 3; sfx.cool();
+      burst(W/2, dy, 46, ['#f4f8ff','#3ee6ff','#2f7bff','#bfe9ff'], 95, 1.1);
+    }
+    if (S.splashed && Math.random()<.5) S.parts.push({x:W/2+rnd(-3,3), y:dy-6, vx:rnd(-8,8), vy:rnd(-40,-20), life:.5, max:.5, c:pick(['#ffd23a','#f4f8ff','#3ee6ff']), s:1});
+    if (S.clearT > 3.6) die('clear', W/2, dy, sfx.clear, true);
+  },
+  render(t){
+    const dy = DY();
+    // strata: one row of game pixels at a time
+    for (let y=-8;y<H+8;y++){
+      const d = S.dist + y - dy;
+      if (d>=END_D-6){
+        // far side: sandy seabed → ocean (lighter toward the surface) → foam → open sky
+        let col;
+        if (d<END_D) col = (Math.floor(d)%3===0) ? '#b89a62' : '#d6bd84';
+        else if (d<END_D+SEA){ const c = mix(hex('#0d2f7a'), hex('#3f8cff'), (d-END_D)/SEA); col = `rgb(${c.map(v=>v|0).join(',')})`; }
+        else if (d<END_D+SEA+2) col = '#f4f8ff';
+        else { const c = mix(hex('#7fd0ff'), hex('#4fb6ff'), clamp((d-END_D-SEA)/180,0,1)); col = `rgb(${c.map(v=>v|0).join(',')})`; }
+        ctx.fillStyle = col; ctx.fillRect(-8,y,W+16,1);
+        continue;
+      }
+      if (d<0){ ctx.fillStyle = '#4fb6ff'; ctx.fillRect(-8,y,W+16,1); continue; }
+      if (d<4){ ctx.fillStyle = d<2 ? '#5ee05e' : '#2f8f3a'; ctx.fillRect(-8,y,W+16,1); continue; }
+      const km = atStops(D_STOPS, d);
+      const h = this.hard(d), f = 1.25 - .65*(h-.5)/1.5;
+      const c = earthRGB(km);
+      ctx.fillStyle = `rgb(${(c[0]*f)|0},${(c[1]*f)|0},${(c[2]*f)|0})`;
+      ctx.fillRect(-8,y,W+16,1);
+      const di = Math.floor(d), hsh = Math.imul(di, 2654435761)>>>0;
+      if (hsh%4===0){ ctx.fillStyle = `rgba(255,255,255,${h>1.3?.06:.18})`; ctx.fillRect(hsh%W, y, 2, 1); ctx.fillRect((hsh>>>8)%W, y, 1, 1); }
+      if (h>1.4){ // very hard rock: diagonal hatching so it reads as a warning band
+        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        for (let x=((di%6)+6)%6; x<W; x+=6) ctx.fillRect(x, y, 2, 1);
+      }
+    }
+    // surface details
+    const sy = dy - S.dist;
+    if (sy > -30){
+      ctx.fillStyle = '#f4f8ff'; ctx.fillRect(18, sy-40, 16, 3); ctx.fillRect(22, sy-43, 8, 3); ctx.fillRect(100, sy-52, 20, 3);
+      ctx.fillStyle = '#1d3f9a'; [[6,10],[14,16],[110,12],[120,20],[130,9]].forEach(([x,hh]) => ctx.fillRect(x, sy-hh, 7, hh));
+    }
+    // far-side sky (seen upside down): sun and clouds below the sea surface
+    const skyY = dy + (END_D + SEA - S.dist);
+    if (skyY < H+10){
+      const sx = 34, sY = Math.round(skyY + 70);
+      ctx.fillStyle = '#ffd23a'; ctx.fillRect(sx-6, sY-4, 12, 8); ctx.fillRect(sx-4, sY-6, 8, 12);
+      ctx.fillStyle = '#fff6b0'; ctx.fillRect(sx-3, sY-3, 4, 3);
+      ctx.fillStyle = 'rgba(244,248,255,.9)';
+      [[88,30,26],[14,120,22],[96,150,30],[50,210,24]].forEach(([x,o,w]) => {
+        const y = Math.round(skyY + o);
+        ctx.fillRect(x, y, w, 4); ctx.fillRect(x+3, y+3, w-8, 3); ctx.fillRect(x+(w*.4|0), y+5, w*.35|0, 2);
+      });
+      // a small island on the horizon line, hanging upside down
+      ctx.fillStyle = '#45c24a'; ctx.fillRect(108, Math.round(skyY)+2, 18, 3);
+      ctx.fillStyle = '#8a5a3c'; ctx.fillRect(116, Math.round(skyY)+5, 2, 6);
+    }
+    // scenery buried in the layers
+    for (const o of S.decos){
+      const y = Math.round(dy + (o.d - S.dist));
+      const frames = DECO[o.type];
+      const img = frames[((t*(o.type==='worm'?3:2)+o.ph)|0) % frames.length];
+      if (y < -img.height || y > H+img.height) continue;
+      if (o.type==='magma' || o.type==='iron'){   // soft glow
+        ctx.fillStyle = o.type==='magma' ? 'rgba(255,154,58,.18)' : 'rgba(255,246,176,.18)';
+        ctx.fillRect(o.x-2, y-2, img.width+4, img.height+4);
+      }
+      const ox = o.type==='fish' ? Math.round(o.x + Math.sin(t+o.ph)*6) : o.x;
+      if (o.flip){ ctx.save(); ctx.translate(ox+img.width, y); ctx.scale(-1,1); ctx.drawImage(img, 0, 0); ctx.restore(); }
+      else ctx.drawImage(img, ox, y);
+    }
+    // heat, stages 1–2: the rock around the drill glows and the glow spreads as heat rises
+    // (yellow → orange → red), with a pulsing ring at its edge
+    if (S.heat>8 && !(S.dead && S.reason==='heat')){
+      const hh = S.heat/100, r = 6 + hh*58, cx = W/2, cy = dy+3;
+      const col = S.heat<45 ? '255,200,60' : S.heat<75 ? '255,120,30' : '255,40,30';
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(${col},${(.35+.45*hh).toFixed(3)})`);
+      g.addColorStop(.6, `rgba(${col},${(.18+.3*hh).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.fillRect(cx-r, cy-r, r*2, r*2);
+      const pr = r*(.9 + .08*Math.sin(t*(S.heat>75?18:8)));
+      ctx.strokeStyle = `rgba(${col},${(.4+.5*hh).toFixed(3)})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, pr, 0, Math.PI*2); ctx.stroke();
+    }
+    // tunnel (its walls glow red-hot near the drill when hot)
+    const top = Math.max(-8, sy);
+    const tEnd = Math.min(dy+2, Math.round(dy - (S.dist - END_D)));   // the tunnel stops at the far-side seabed
+    if (tEnd > top){
+      ctx.fillStyle = '#1a0f14'; ctx.fillRect(W/2-5, top, 11, tEnd-top);
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(W/2-5, top, 1, tEnd-top);
+    }
+    if (S.heat>45){
+      const len = Math.round((S.heat-45)/55*40);
+      ctx.fillStyle = S.heat>75 ? '#ff3b1a' : '#ff9a3a';
+      ctx.fillRect(W/2-6, dy-len, 1, len); ctx.fillRect(W/2+6, dy-len, 1, len);
+    }
+    // water pockets
+    for (const w of S.waters){
+      if (w.used) continue;
+      const y = dy + (w.d - S.dist);
+      if (y>-8 && y<H+8) ctx.drawImage(WATER, W/2-4, Math.round(y)-3);
+    }
+    // drill
+    const shake = S.heat>80 ? Math.round(rnd(-1,1)) : 0;
+    const frame = (input.hold || S.clearing) && !S.dead ? ((t*16)|0)%2 : 0;
+    if (!S.dead || S.reason!=='heat'){
+      ctx.drawImage(DRILL[frame], W/2-5+shake, dy-6);
+    }
+    // heat, stage 3: red warning frame around the whole screen (blinks faster as it gets worse)
+    if (S.heat>65 && !S.dead){
+      const fast = S.heat>90;
+      if (((t*(fast?8:3))|0)%2===0){
+        const th = fast ? 4 : 2;
+        ctx.fillStyle = fast ? '#ff2a1a' : 'rgba(255,59,92,.8)';
+        ctx.fillRect(0,0,W,th); ctx.fillRect(0,H-th,W,th); ctx.fillRect(0,0,th,H); ctx.fillRect(W-th,0,th,H);
+      }
+    }
+    // cross-section map on the right edge
+    const mx = W-6, y0 = 34, y1 = H-14, L = y1-y0;
+    ctx.fillStyle = '#0b1440'; ctx.fillRect(mx-1, y0-1, 5, L+2);
+    for (let i=0;i<L;i++){ const c = earthRGB(i/L*12742); ctx.fillStyle = `rgb(${c.map(v=>v|0).join(',')})`; ctx.fillRect(mx, y0+i, 3, 1); }
+    ctx.fillStyle = '#ffd23a'; ctx.fillRect(mx-3, Math.round(y0 + S.km/12742*L)-1, 7, 2);
+  },
+  hud(){
+    // heat is shown by the screen darkening from the edges, time as a big number at the bottom
+    return {main:fmtDepth(S.km), chip:S.clearing ? '地球の裏側に出た！' : dZone(S.km), label:null, big:Math.ceil(S.time), bigWarn:S.time<=5,
+      alert: S.dead ? null : S.heat>=100 ? 'もう限界！今すぐ離して！' : S.heat>75 ? 'あつい！指を離して冷やそう' : null};
+  },
+};
+
+/* =====================================================================
+   GAME 4 — 惑星ホッパー (宇宙)
+   ===================================================================== */
+const MINI = spr(['..R..','.RWR.','.WCW.','.WWW.','RWWWR','R.O.R','..O..']);
+const SUN = disc(15, (dx,dy,d) => d>15 ? null : d>13.5 ? '#ff9a3a' : (-dx-dy)>8 ? '#fff6b0' : '#ffd23a');
+const SMALL_EARTH = disc(7, (dx,dy,d) => {
+  if (d>7) return null; if (d>6.2) return '#7fd8ff';
+  const land = Math.sin(dx*.9+1)+Math.sin(dy*1.1+dx*.4) > .8;
+  return land ? '#45c24a' : ((-dx-dy)>4 ? '#3f8cff' : '#2160d8');
+});
+const JUPITER = disc(12, (dx,dy,d) => {
+  if (d>12) return null;
+  if (Math.hypot(dx-4,dy-3)<2.2) return '#c0503a';           // the Great Red Spot
+  const band = Math.floor((dy+12)/3)%2;
+  return dx>7 ? (band ? '#a88664' : '#8a6040') : (band ? '#d9b38c' : '#b5835a');
+});
+function makeSaturn(){
+  const w=31, h=17, cx=15.5, cy=8.5, c=document.createElement('canvas'); c.width=w; c.height=h;
+  const x=c.getContext('2d'), img=x.createImageData(w,h);
+  const put=(i,j,col)=>{ const [R,G,B]=hex(col), p=(j*w+i)*4; img.data[p]=R; img.data[p+1]=G; img.data[p+2]=B; img.data[p+3]=255; };
+  for (let j=0;j<h;j++) for (let i=0;i<w;i++){
+    const dx=i+.5-cx, dy=j+.5-cy, d=Math.hypot(dx,dy), e=(dx/14)**2+(dy/3.4)**2;
+    const ring = e>.62 && e<1, body = d<=6.5;
+    if (body && !(ring && dy>0)) put(i,j, (-dx-dy)>4 ? '#f6e6b8' : dx>3 ? '#b0904e' : '#e8cf8f');
+    else if (ring && (!body || dy>0)) put(i,j, e<.8 ? '#d9c29a' : '#a88f68');
+  }
+  x.putImageData(img,0,0); return c;
+}
+const SATURN = makeSaturn();
+const PLUTO = disc(4, (dx,dy,d) => d>4 ? null : (dx>-.5 && dy>-1.5 && dy<2.5) ? '#f4e6d0' : '#b9946c');
+const HOP_BODIES = [
+  {name:'太陽', img:SUN, r:15},
+  {name:'水星', img:planet(5,'#9a9aa6','#c8c8d2','#5e5e6a','#7a7a86',.7), r:5},
+  {name:'金星', img:planet(7,'#e8c27a','#f6e0a8','#a8823e',null,1), r:7},
+  {name:'地球', img:SMALL_EARTH, r:7},
+  {name:'火星', img:planet(6,'#d4542e','#f08a52','#7a2a1c','#b04424',2.6), r:6},
+  {name:'木星', img:JUPITER, r:12},
+  {name:'土星', img:SATURN, r:7},
+  {name:'天王星', img:planet(9,'#8fe3e8','#c6f4f6','#4fa8b0',null,1), r:9},
+  {name:'海王星', img:planet(9,'#3f6fff','#7fa0ff','#1e3aa8',null,1), r:9},
+  {name:'冥王星', img:PLUTO, r:4},
+];
+const H_FACTS = [
+  {t:'水星', b:'太陽にいちばん近い惑星。昼は約430℃、夜は約-180℃になる。'},
+  {t:'金星', b:'厚い二酸化炭素の大気で温室効果が強く、表面は約460℃。水星より熱い。'},
+  {t:'地球', b:'表面の約7割が海。液体の水があり、生命がいる星。'},
+  {t:'火星', b:'赤いのは地面に酸化鉄（さび）が多いから。太陽系最大級の火山オリンポス山がある。'},
+  {t:'木星', b:'太陽系でいちばん大きい惑星。地球が1300個以上入る大きさ。'},
+  {t:'土星', b:'とても軽い惑星で、平均の密度は水より小さい。大きな輪は氷のつぶでできている。'},
+  {t:'天王星', b:'自転軸が約98度かたむいていて、横だおしのまま太陽のまわりを回る。'},
+  {t:'海王星', b:'太陽系でいちばん強い風が吹く。風速は秒速約600mにもなる。'},
+  {t:'冥王星', b:'2006年に惑星から「準惑星」に分類が変わった。ハートの形のもようがある。'},
+];
+
+const Hop = {
+  id:'hop', short:'惑星', title:'惑星ホッパー', cat:'宇宙のひみつ', sub:'タップで飛び出して次の星へ', icon:SATURN,
+  steer:false, scoreLabel:'着いた星', fmt: s => `${Math.floor(s)} こ`,
+  hint:'ロケットは星のまわりを回っている<br>タップすると、まっすぐ飛び出す<br>次の星の点線の輪に入ればキャッチ！',
+  tune: {
+    // timing window to hit the next ring ≈ easy 0.35s / normal 0.24s / hard 0.14s per lap
+    easy:   {w:1.3, v:95,  cap:12, guide:80, drift:0,  driftFrom:99},
+    normal: {w:1.7, v:115, cap:8,  guide:30, drift:8,  driftFrom:5},
+    hard:   {w:2.3, v:130, cap:4,  guide:0,  drift:12, driftFrom:0},
+  },
+  facts: H_FACTS.map((f,i) => ({k: i<8 ? `太陽から${i+1}番目` : '準惑星', t:f.t, b:f.b})),
+  lockHint: i => `${H_FACTS[i].t}にたどり着くと見つかる`,
+  reasons: {lost:['LOST!','宇宙のかなたへ飛んでいってしまった']},
+  share: s => `「惑星ホッパー」で ${Math.floor(s)} こ目の星まで進んだ！`,
+
+  start(){
+    Object.assign(S, {bodies:[], state:'orbit', a:-Math.PI/2, dir:1, px:0, py:0, vx:0, vy:0, flyT:0, hearts:3, respawnT:0});
+    for (let k=0;k<4;k++) this.addBody();
+    S.cur = S.bodies[0];
+    S.camY = S.cur.y - H*.68;
+    S.px = S.cur.x + Math.cos(S.a)*S.cur.R; S.py = S.cur.y + Math.sin(S.a)*S.cur.R;
+  },
+  addBody(){
+    const k = S.bodies.length, prev = S.bodies[k-1];
+    let def = HOP_BODIES[k];
+    if (!def){ const R = pick(ROCKS); def = {name:'小惑星', img:R.img, r:R.r}; }
+    const y = prev ? prev.y - rnd(95,130) : 0;
+    const x = prev ? clamp(prev.x + (Math.random()<.5?-1:1)*rnd(20,60), 26, W-26) : W/2;
+    S.bodies.push({k, name:def.name, img:def.img, r:def.r, R:Math.max(13, def.r+9), bx:x, x, y, ph:Math.random()*6});
+  },
+  update(dt){
+    const P = this.tune[S.diff];
+    const amp = S.score>=P.driftFrom ? P.drift : 0;
+    for (const b of S.bodies) if (b.k > S.cur.k) b.x = clamp(b.bx + Math.sin(S.t*.9+b.ph)*amp, 16, W-16);
+    S.camY += (S.cur.y - H*.68 - S.camY)*Math.min(1, dt*3);
+    if (S.dead) return;
+    const w = P.w * (1 + Math.min(.5, S.score*.03));
+    if (S.state==='orbit'){
+      S.a += w*S.dir*dt;
+      S.px = S.cur.x + Math.cos(S.a)*S.cur.R; S.py = S.cur.y + Math.sin(S.a)*S.cur.R;
+      if (input.taps.length){   // launch straight along the orbit's tangent
+        S.state = 'fly'; S.flyT = 0;
+        S.vx = -Math.sin(S.a)*S.dir*P.v; S.vy = Math.cos(S.a)*S.dir*P.v;
+        sfx.launch();
+      }
+    } else if (S.state==='fly'){
+      S.flyT += dt; S.px += S.vx*dt; S.py += S.vy*dt;
+      if (Math.random()<.7) S.parts.push({x:S.px+rnd(-1,1), y:S.py-S.camY+rnd(-1,1), vx:-S.vx*.1, vy:-S.vy*.1, life:.3, max:.3, c:pick(['#ffd23a','#ff9a3a']), s:1});
+      for (const b of S.bodies){
+        if (b.k <= S.cur.k) continue;
+        const dx = S.px-b.x, dy = S.py-b.y;
+        if (Math.hypot(dx,dy) < b.R + P.cap){
+          // captured: keep circling in the direction we arrived from
+          S.dir = (dx*S.vy - dy*S.vx) >= 0 ? 1 : -1;
+          S.a = Math.atan2(dy,dx); S.cur = b; S.state = 'orbit'; S.score = b.k;
+          sfx.make(); burst(b.x, b.y-S.camY, 18, ['#3ee6ff','#ffd23a','#f4f8ff'], 50, .6);
+          if (b.k>=1 && b.k<=H_FACTS.length) discover(b.k-1);
+          while (S.bodies.length < b.k+4) this.addBody();
+          break;
+        }
+      }
+      const sy = S.py - S.camY;
+      if (S.state==='fly' && (S.px<-8 || S.px>W+8 || sy>H+12 || sy<-30 || S.flyT>3.2)){
+        S.hearts--; S.shake = 3; sfx.wrong();
+        if (S.hearts<=0){ die('lost', clamp(S.px,4,W-4), clamp(sy,4,H-4), sfx.empty, true); return; }
+        S.state = 'respawn'; S.respawnT = .7;
+      }
+    } else if (S.state==='respawn'){
+      S.respawnT -= dt; if (S.respawnT<=0) S.state = 'orbit';
+    }
+  },
+  render(t){
+    ctx.fillStyle = '#070b2b'; ctx.fillRect(-8,-8,W+16,H+16);
+    for (const s of STARS){
+      const y = ((s.y - S.camY*.25*s.z) % H + H) % H;
+      ctx.globalAlpha = (.4+.6*s.z)*(.6+.4*Math.sin(t*3+s.p));
+      ctx.fillStyle = s.z>.85 ? '#ffd23a' : '#f4f8ff'; ctx.fillRect(s.x|0, y|0, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+    const P = this.tune[S.diff];
+    const ring = (x, y, r, col, spin) => { ctx.fillStyle = col;
+      const n = Math.max(16, Math.round(r*1.2));
+      for (let i=0;i<n;i++){ const a = i/n*Math.PI*2 + t*spin; ctx.fillRect(Math.round(x+Math.cos(a)*r), Math.round(y+Math.sin(a)*r), 1, 1); } };
+    for (const b of S.bodies){
+      const sy = b.y - S.camY;
+      if (sy < -40 || sy > H+40) continue;
+      if (b.k===0){
+        const g = ctx.createRadialGradient(b.x, sy, 10, b.x, sy, 34);
+        g.addColorStop(0, 'rgba(255,210,58,.35)'); g.addColorStop(1, 'rgba(255,210,58,0)');
+        ctx.fillStyle = g; ctx.fillRect(b.x-34, sy-34, 68, 68);
+      }
+      if (b.k > S.cur.k && b.k <= S.cur.k+2) ring(b.x, sy, b.R+P.cap, b.k===S.cur.k+1 ? 'rgba(62,230,255,.85)' : 'rgba(62,230,255,.35)', .5);
+      else if (b===S.cur) ring(b.x, sy, b.R, 'rgba(244,248,255,.25)', 0);
+      ctx.drawImage(b.img, Math.round(b.x - b.img.width/2), Math.round(sy - b.img.height/2));
+    }
+    if (S.dead || S.state==='respawn') return;
+    const sy = S.py - S.camY;
+    const hx = S.state==='fly' ? S.vx : -Math.sin(S.a)*S.dir, hy = S.state==='fly' ? S.vy : Math.cos(S.a)*S.dir;
+    if (S.state==='orbit' && P.guide>0){
+      const m = Math.hypot(hx,hy); ctx.fillStyle = 'rgba(255,210,58,.85)';
+      for (let s=7; s<P.guide; s+=5) ctx.fillRect(Math.round(S.px+hx/m*s), Math.round(sy+hy/m*s), 1, 1);
+    }
+    ctx.save(); ctx.translate(Math.round(S.px), Math.round(sy)); ctx.rotate(Math.atan2(hy,hx)+Math.PI/2);
+    ctx.drawImage(MINI, -2, -3); ctx.restore();
+  },
+  hud(){ return {main:`★ ${S.score}`, chip:`いま：${S.cur.name}`, label:null, hearts:S.hearts, maxHearts:3}; },
+};
+
+/* =====================================================================
+   GAME 5 — ぴったり温度計 (科学)
+   ===================================================================== */
+const T_ITEMS = [
+  {n:'氷がとける温度', t:0, min:-40, max:40, b:'氷は0℃でとけて水になる。水がこおるのも0℃（1気圧のとき）。'},
+  {n:'人の体温', t:36.5, min:0, max:60, b:'人の体温はふつう約36〜37℃。42℃をこえると命があぶない。'},
+  {n:'水がふっとうする温度', t:100, min:0, max:150, b:'1気圧では100℃でふっとう。富士山の山頂では気圧が低く、約87℃でふっとうする。'},
+  {n:'天ぷらを揚げる油', t:180, min:0, max:250, b:'天ぷら油は約170〜180℃。水の沸点よりずっと高いので、カラッと揚がる。'},
+  {n:'鉛がとける温度', t:327, min:0, max:500, b:'鉛は約327℃でとける。金属の中ではかなりとけやすい。'},
+  {n:'金がとける温度', t:1064, min:0, max:1500, b:'金は約1064℃でとける。さびにくく、昔から宝物に使われてきた。'},
+  {n:'溶岩の温度', t:1100, min:0, max:2000, b:'噴火で流れ出る溶岩は約1000〜1200℃。冷えると岩になる。'},
+  {n:'鉄がとける温度', t:1538, min:0, max:2000, b:'鉄は約1538℃でとける。製鉄所の高炉では1500℃以上の熱で鉄を取り出す。'},
+  {n:'太陽の表面', t:5500, min:0, max:8000, b:'太陽の表面は約5500℃。中心はなんと約1500万℃。'},
+  {n:'かみなり', t:30000, min:0, max:40000, b:'雷が通る道の空気は約3万℃。太陽の表面の約5倍の熱さ。'},
+];
+function fmtT(v, fine){
+  if (fine) return v.toFixed(1)+'℃';
+  return (Math.abs(v)>=1000 ? Math.round(v).toLocaleString('ja-JP') : String(Math.round(v)))+'℃';
+}
+const THERMO_ICON = spr(['.WWW.','.WRW.','.WRW.','.WRW.','.WRW.','.WRW.','WRRRW','WRRRW','.WWW.']);
+const BULB = disc(9, (dx,dy,d) => d>9 ? null : d>8 ? '#f4f8ff' : (-dx-dy)>5 ? '#ff8099' : '#ff3b5c');
+const TCX = 50;                                 // thermometer x
+const tTop = () => 54, tBot = () => H-92;       // tube top / bottom (game px)
+
+const Thermo = {
+  id:'thermo', short:'温度計', title:'ぴったり温度計', cat:'科学のなぜ？', sub:'押してあたため、目標の温度でストップ', icon:THERMO_ICON,
+  steer:false, scoreLabel:'クリアした問題', fmt: s => `${Math.floor(s)} もん`,
+  hint:'押しているあいだ温度が上がる<br>離してもすぐには止まらない！<br>黄色い目標ゾーンでピタッと止めよう',
+  tune: {
+    easy:   {acc:.5,  vmax:.42, k:6,   band:.075, time:10},
+    normal: {acc:.8,  vmax:.6,  k:3.5, band:.05,  time:7},
+    hard:   {acc:1.1, vmax:.8,  k:2.3, band:.035, time:6},
+  },
+  facts: T_ITEMS.map(it => ({k:fmtT(it.t, it.t%1!==0), t:it.n, b:it.b})),
+  lockHint: i => `「${T_ITEMS[i].n}」の問題をクリアすると見つかる`,
+  reasons: {miss:['MISS!','3回失敗した。離したあとも温度は少し上がるよ']},
+  share: s => `「ぴったり温度計」で ${Math.floor(s)} 問クリア！`,
+
+  start(){
+    Object.assign(S, {hearts:3, round:0});
+    layer.innerHTML = '<div class="tlabel" id="tTarget"></div><div class="tscale" id="tMax"></div><div class="tscale" id="tMin"></div><div class="tres" id="tRes"></div>';
+    this.next();
+  },
+  next(){
+    const P = this.tune[S.diff];
+    const i = S.round < T_ITEMS.length ? S.round : (Math.random()*T_ITEMS.length)|0;
+    const it = T_ITEMS[i], range = it.max-it.min;
+    Object.assign(S, {ii:i, it, range, T:it.min, v:0, pressed:false, phase:'heat', timer:P.time, judgeT:0,
+      band: range*P.band*Math.max(.6, 1 - S.round*.03), fine: range<=60});
+    const y = this.ty(it.t), pct = v => (v/H*100).toFixed(2)+'%';
+    const tg = $('#tTarget'); tg.style.top = pct(y); tg.style.left = ((TCX+15)/W*100)+'%';
+    tg.textContent = `◀ 目標 ${fmtT(it.t, S.fine)}`;
+    const mx = $('#tMax'); mx.style.top = pct(tTop()); mx.style.left = ((TCX+9)/W*100)+'%'; mx.textContent = fmtT(it.max);
+    const mn = $('#tMin'); mn.style.top = pct(tBot()); mn.style.left = ((TCX+9)/W*100)+'%'; mn.textContent = fmtT(it.min);
+    const r = $('#tRes'); r.textContent = ''; r.className = 'tres';
+  },
+  ty(T){ return tBot() - (T-S.it.min)/S.range*(tBot()-tTop()); },
+  update(dt){
+    if (S.dead) return;
+    const P = this.tune[S.diff];
+    if (S.phase==='heat'){
+      S.timer -= dt;
+      if (input.hold){ S.pressed = true; S.v = Math.min(S.range*P.vmax, S.v + S.range*P.acc*dt); }
+      else S.v *= Math.exp(-P.k*dt);            // heat keeps coming for a moment after letting go
+      S.T += S.v*dt;
+      if (input.hold && Math.random()<.8) S.parts.push({x:TCX+rnd(-5,5), y:tBot()+19, vx:rnd(-6,6), vy:rnd(-30,-12), life:rnd(.2,.4), max:.4, c:pick(['#ffd23a','#ff9a3a','#ff3b5c']), s:Math.random()<.4?2:1});
+      if (S.T >= S.it.max){ S.T = S.it.max; this.judge('over'); }
+      else if (S.pressed && !input.hold && S.v < S.range*.01) this.judge();
+      else if (S.timer<=0){ S.timer = 0; this.judge('time'); }
+    } else if (S.phase==='judge'){
+      S.judgeT -= dt;
+      if (S.judgeT<=0){
+        if (S.hearts<=0) die('miss', TCX, tBot(), null, true);
+        else { S.round++; this.next(); }
+      }
+    }
+  },
+  judge(kind){
+    const err = S.T - S.it.t, ok = kind!=='over' && Math.abs(err) <= S.band;
+    S.phase = 'judge'; S.judgeT = 1.5; S.v = 0;
+    const r = $('#tRes');
+    if (ok){
+      S.score++; sfx.make();
+      burst(TCX, this.ty(S.T), 20, ['#ffd23a','#5ee05e','#f4f8ff'], 55, .6);
+      r.className = 'tres ok';
+      r.textContent = Math.abs(err) <= S.band/3 ? 'ぴったり！' : 'セーフ！';
+      if (!S.foundRun.includes(S.ii)) discover(S.ii);
+    } else {
+      S.hearts--; S.shake = 3; sfx.wrong();
+      r.className = 'tres ng';
+      r.textContent = kind==='over' || err>0 ? 'あつすぎ！' : (kind==='time' && !S.pressed) ? '時間切れ' : 'ぬるい…';
+    }
+    const d = document.createElement('small'); d.textContent = `${fmtT(S.T, S.fine)}（目標 ${fmtT(S.it.t, S.fine)}）`;
+    r.append(document.createElement('br'), d);
+  },
+  render(t){
+    const f = clamp((S.T - S.it.min)/S.range, 0, 1);
+    const bg = mix(hex('#0d1850'), hex('#4a1030'), f);
+    ctx.fillStyle = `rgb(${bg.map(v=>v|0).join(',')})`; ctx.fillRect(-8,-8,W+16,H+16);
+    ctx.fillStyle = 'rgba(255,255,255,.04)';
+    for (let x=0;x<W;x+=12) ctx.fillRect(x,0,1,H);
+    for (let y=0;y<H;y+=12) ctx.fillRect(0,y,W,1);
+    const yT = tTop(), yB = tBot();
+    // ticks
+    for (let i=0;i<=10;i++){ const y = Math.round(yB - i/10*(yB-yT));
+      ctx.fillStyle = i%5===0 ? '#f4f8ff' : 'rgba(244,248,255,.5)'; ctx.fillRect(TCX-13, y, i%5===0?6:3, 1); }
+    // target zone
+    const ty = this.ty(S.it.t), bh = Math.max(1.5, S.band/S.range*(yB-yT));
+    ctx.fillStyle = 'rgba(255,210,58,.35)'; ctx.fillRect(TCX-9, Math.round(ty-bh), 22, Math.round(bh*2));
+    ctx.fillStyle = '#ffd23a'; ctx.fillRect(TCX-9, Math.round(ty-bh), 22, 1); ctx.fillRect(TCX-9, Math.round(ty+bh), 22, 1);
+    // glass tube
+    ctx.fillStyle = '#16204f'; ctx.fillRect(TCX-4, yT-3, 8, yB-yT+6);
+    ctx.fillStyle = '#f4f8ff'; ctx.fillRect(TCX-5, yT-4, 1, yB-yT+8); ctx.fillRect(TCX+4, yT-4, 1, yB-yT+8); ctx.fillRect(TCX-4, yT-5, 8, 1);
+    // liquid column
+    const my = Math.round(this.ty(clamp(S.T, S.it.min, S.it.max)));
+    ctx.fillStyle = '#ff3b5c'; ctx.fillRect(TCX-3, my, 6, yB-my+4);
+    ctx.fillStyle = '#ff8099'; ctx.fillRect(TCX-2, my, 1, yB-my+4);
+    ctx.drawImage(BULB, TCX-10, yB+2);
+    // burner flame while heating
+    if (input.hold && S.phase==='heat' && !S.dead){
+      const fl = ((t*20)|0)%3;
+      ctx.fillStyle = '#3ee6ff'; ctx.fillRect(TCX-5, yB+26, 11, 2);
+      ctx.fillStyle = '#ff9a3a'; ctx.fillRect(TCX-3, yB+22-fl, 7, 4+fl);
+      ctx.fillStyle = '#ffd23a'; ctx.fillRect(TCX-1, yB+21-fl, 3, 4);
+    }
+    ctx.fillStyle = '#8a9bc4'; ctx.fillRect(TCX-8, yB+28, 17, 3);
+  },
+  hud(){
+    return {main:fmtT(S.T, S.fine), chip:`第${S.round+1}問：${S.it.n}`, label:null, hearts:S.hearts, maxHearts:3,
+      big: S.phase==='heat' ? Math.ceil(S.timer) : null, bigWarn: S.timer<=2};
+  },
+};
+
+/* =====================================================================
+   GAME 6 — くらべてランキング (ランキング)
+   ===================================================================== */
+const ICON_SPEED = spr(['....YYY..','...YYY...','..YYY....','.YYYYYY..','....YYY..','...YYY...','..YY.....','.YY......','Y........']);
+const ICON_MOUNT = spr(['....W....','...WWW...','..GWGWG..','..GGGGG..','.GGGGGGG.','.GGDGGGG.','GGGGGDGGG','GDGGGGGGG','GGGGGGGGG']);
+const ICON_WEIGHT = spr(['...GGG...','..G...G..','..G...G..','.GGGGGGG.','GGGGGGGGG','GGWGGGGGG','GGGGGGGGG','GGGGGGGGG','.GGGGGGG.']);
+const TROPHY = spr(['YYYYYYYYY','Y.YYYYY.Y','Y.YYYYY.Y','.YYYYYYY.','..YYYYY..','...YYY...','....Y....','..OOOOO..','..OOOOO..']);
+const ICON_RULER = spr(['.........','.........','YYYYYYYYY','Y.Y.Y.Y.Y','Y...Y...Y','YYYYYYYYY','YYYYYYYYY','.........','.........']);
+const ICON_DEPTH = spr(['.CC..CC..','C..CC..CC','.........','....B....','....B....','....B....','..BBBBB..','...BBB...','....B....']);
+const ICON_LIFE = spr(['YYYYYYYYY','.W.....W.','..WOOOW..','...WOW...','....W....','...W.W...','..W.O.W..','.WOOOOOW.','YYYYYYYYY']);
+const RANK_CATS = {
+  speed:  {q:'速いのはどっち？', label:'速さ', icon:ICON_SPEED},
+  height: {q:'高いのはどっち？', label:'高さ', icon:ICON_MOUNT},
+  weight: {q:'重いのはどっち？', label:'重さ', icon:ICON_WEIGHT},
+  length: {q:'長いのはどっち？', label:'長さ', icon:ICON_RULER},
+  depth:  {q:'深いのはどっち？', label:'深さ', icon:ICON_DEPTH},
+  life:   {q:'長生きなのはどっち？', label:'寿命', icon:ICON_LIFE},
+  age:    {q:'昔なのはどっち？', label:'むかし', icon:DECO.ammonite[0]},
+  size:   {q:'大きいのはどっち？', label:'大きさ', icon:SMALL_EARTH},
+};
+const RANK_ITEMS = [
+  {c:'speed', n:'人間（最速ランナー）', v:45, d:'時速 約45km', b:'100m世界記録の選手は、いちばん速いとき時速約45kmで走っている。'},
+  {c:'speed', n:'チーター', v:110, d:'時速 約110km', b:'陸上でいちばん速い動物。ただし全力で走れるのは数百mほど。'},
+  {c:'speed', n:'新幹線', v:320, d:'時速 320km', b:'日本の新幹線の最高営業速度は時速320km（東北新幹線など）。'},
+  {c:'speed', n:'ハヤブサ（急降下）', v:390, d:'時速 約390km', b:'獲物をねらって急降下するとき時速約390km。地球最速の動物。'},
+  {c:'speed', n:'ジェット旅客機', v:900, d:'時速 約900km', b:'ジェット旅客機は高度約10kmを、時速約900kmで飛ぶ。'},
+  {c:'speed', n:'音', v:1225, d:'時速 約1225km', b:'音は空気中を秒速約340m（時速約1225km）で伝わる。'},
+  {c:'speed', n:'国際宇宙ステーション', v:28000, d:'時速 約2万8000km', b:'ISSは秒速約7.7km。約90分で地球を1周する。'},
+  {c:'height', n:'東京タワー', v:333, d:'333m', b:'1958年に完成した、高さ333mの電波塔。'},
+  {c:'height', n:'東京スカイツリー', v:634, d:'634m', b:'高さ634m。自立式の電波塔として世界一高い。'},
+  {c:'height', n:'ブルジュ・ハリファ', v:828, d:'828m', b:'ドバイにある高さ828mの、世界一高いビル。'},
+  {c:'height', n:'富士山', v:3776, d:'3776m', b:'日本一高い山。標高3776m。'},
+  {c:'height', n:'エベレスト', v:8849, d:'8849m', b:'世界一高い山。2020年の測量で標高8848.86m。'},
+  {c:'height', n:'オリンポス山（火星）', v:21900, d:'約2万1900m', b:'火星にある太陽系最大級の火山。高さはエベレストの約2.5倍。'},
+  {c:'weight', n:'乗用車', v:1.5, d:'約1.5t', b:'ふつうの乗用車の重さは約1〜2t。'},
+  {c:'weight', n:'アフリカゾウ', v:6, d:'約6t', b:'陸上でいちばん重い動物。大きなオスは約6tにもなる。'},
+  {c:'weight', n:'ティラノサウルス', v:8, d:'推定 約8t', b:'化石から推定すると約8t。アフリカゾウより重かったと考えられている。'},
+  {c:'weight', n:'シロナガスクジラ', v:190, d:'最大 約190t', b:'今の地球でいちばん大きな動物。最大で約190tにもなる。'},
+  {c:'weight', n:'国際宇宙ステーション', v:420, d:'約420t', b:'ISSの重さは約420t。部品をロケットで運び、宇宙で組み立てた。'},
+
+  {c:'length', n:'信濃川', v:367, d:'367km', b:'日本でいちばん長い川。長野県では「千曲川」と呼ばれる。'},
+  {c:'length', n:'日本列島（北海道〜沖縄）', v:3000, d:'約3000km', b:'日本列島は北から南まで約3000kmにわたって弓なりにのびている。'},
+  {c:'length', n:'ナイル川', v:6650, d:'約6650km', b:'アフリカを流れる、世界でいちばん長いとされる川。'},
+  {c:'length', n:'万里の長城', v:21196, d:'約2万1196km', b:'中国の調査（2012年）では、枝分かれも合わせて約2万1196km。'},
+  {c:'length', n:'地球1周（赤道）', v:40075, d:'約4万km', b:'赤道にそって地球を1周すると約4万km。'},
+  {c:'length', n:'人の血管（ぜんぶつなぐ）', v:100000, d:'約10万km', b:'大人の血管をすべてつなぐと約10万km。地球2周半にもなる。'},
+
+  {c:'depth', n:'琵琶湖（最大水深）', v:104, d:'約104m', b:'日本一大きな湖。いちばん深いところは約104m。'},
+  {c:'depth', n:'田沢湖（最大水深）', v:423, d:'約423m', b:'日本一深い湖。秋田県にあり、深さは約423m。'},
+  {c:'depth', n:'バイカル湖（最大水深）', v:1642, d:'約1642m', b:'ロシアにある世界一深い湖。世界の湖や川の淡水の約2割がここにある。'},
+  {c:'depth', n:'日本海溝', v:8020, d:'約8000m', b:'日本の東の太平洋にある深い溝。プレートが沈みこむ場所。'},
+  {c:'depth', n:'マリアナ海溝', v:10920, d:'約1万920m', b:'世界でいちばん深い海。エベレストを沈めても頂上がとどかない。'},
+  {c:'depth', n:'コラ超深度掘削坑', v:12262, d:'約1万2262m', b:'人類が掘った最も深い穴。マリアナ海溝より深い。'},
+
+  {c:'life', n:'ハムスター', v:2.5, d:'約2〜3年', b:'ハムスターの寿命は約2〜3年。心臓は1分間に数百回も打つ。'},
+  {c:'life', n:'イヌ', v:14, d:'約14年（平均）', b:'飼いイヌの平均寿命は約14年。小型犬のほうが長生きしやすい。'},
+  {c:'life', n:'ゾウ', v:65, d:'約60〜70年', b:'ゾウは約60〜70年生きる。陸上の動物の中ではとても長生き。'},
+  {c:'life', n:'人間（日本の平均）', v:84, d:'約84年', b:'日本人の平均寿命は約84年。世界でもトップクラス。'},
+  {c:'life', n:'ゾウガメ', v:150, d:'100年以上', b:'ガラパゴスゾウガメは100年以上生きることがある。'},
+  {c:'life', n:'ニシオンデンザメ', v:400, d:'推定 約400年', b:'北の冷たい海にすむサメ。約400年生きると推定され、脊椎動物で最も長生き。'},
+
+  {c:'age', n:'ピラミッド（ギザ）', v:4500, d:'約4500年前', b:'エジプトのギザの大ピラミッドは約4500年前に造られた。'},
+  {c:'age', n:'縄文時代のはじまり', v:16000, d:'約1万6000年前', b:'日本で土器が使われはじめた、縄文時代のはじまりは約1万6000年前。'},
+  {c:'age', n:'ホモ・サピエンスの登場', v:300000, d:'約30万年前', b:'わたしたち人類（ホモ・サピエンス）は約30万年前にアフリカで生まれた。'},
+  {c:'age', n:'恐竜の絶滅', v:66000000, d:'約6600万年前', b:'約6600万年前、巨大な隕石の衝突をきっかけに恐竜は絶滅した。'},
+  {c:'age', n:'最初の生命', v:3800000000, d:'約38億年前', b:'地球で最初の生命は、約38億年前の海で生まれたと考えられている。'},
+  {c:'age', n:'地球の誕生', v:4600000000, d:'約46億年前', b:'地球は約46億年前、太陽のまわりのちりやガスが集まってできた。'},
+  {c:'age', n:'宇宙の誕生', v:13800000000, d:'約138億年前', b:'宇宙は約138億年前の「ビッグバン」で始まったと考えられている。'},
+
+  {c:'size', n:'冥王星', v:2377, d:'直径 約2377km', b:'冥王星は月よりも小さい。直径は約2377km。'},
+  {c:'size', n:'月', v:3474, d:'直径 約3474km', b:'月の直径は地球の約4分の1。'},
+  {c:'size', n:'火星', v:6779, d:'直径 約6779km', b:'火星の直径は地球の約半分。'},
+  {c:'size', n:'地球', v:12742, d:'直径 約1万2742km', b:'地球の直径は約1万2742km。'},
+  {c:'size', n:'木星', v:139820, d:'直径 約14万km', b:'木星の直径は地球の約11倍。太陽系で最大の惑星。'},
+  {c:'size', n:'太陽', v:1392000, d:'直径 約139万km', b:'太陽の直径は地球の約109倍。'},
+];
+
+const Rank = {
+  id:'rank', short:'ランキング', title:'くらべてランキング', cat:'ランキング', sub:'速さ・深さ・寿命…8種類の2択でタップ', icon:TROPHY,
+  steer:false, scoreLabel:'せいかい数', fmt: s => `${Math.floor(s)} もん`,
+  hint:'問題に合うほうをタップ<br>（画面の左半分・右半分どこでもOK）<br>時間切れ・まちがいでハートが減る',
+  tune: {
+    easy:   {t0:7,   tmin:7,   dec:0},
+    normal: {t0:5,   tmin:2.8, dec:.12},
+    hard:   {t0:3.6, tmin:2,   dec:.1},
+  },
+  facts: RANK_ITEMS.map(it => ({k:it.d, t:it.n, b:it.b})),
+  lockHint: i => `「${RANK_CATS[RANK_ITEMS[i].c].label}くらべ」で正解すると見つかる`,
+  reasons: {miss:['MISS!','ハートがなくなった']},
+  share: s => `「くらべてランキング」で ${Math.floor(s)} 問正解！`,
+
+  start(){
+    Object.assign(S, {hearts:3, phase:'ask', qt:0, qmax:1, lastKey:'', showT:0});
+    layer.innerHTML = '<div class="rq"></div><div class="rcards">'
+      + [0,1].map(s => `<div class="rcard"><canvas class="pix"></canvas><b></b><span class="v"></span></div>`).join('<div class="vs">VS</div>')
+      + '</div><div class="rres"></div>';
+    this.next();
+  },
+  next(){
+    const P = this.tune[S.diff];
+    let a, b, key;
+    do {
+      const c = pick(Object.keys(RANK_CATS));
+      const pool = RANK_ITEMS.map((_,i)=>i).filter(i => RANK_ITEMS[i].c===c);
+      a = pick(pool); do { b = pick(pool); } while (b===a);
+      key = [a,b].sort((x,y)=>x-y).join();
+    } while (key===S.lastKey);
+    S.lastKey = key; S.pair = [a,b]; S.phase = 'ask';
+    S.qmax = Math.max(P.tmin, P.t0 - S.score*P.dec); S.qt = S.qmax;
+    const cat = RANK_CATS[RANK_ITEMS[a].c];
+    layer.querySelector('.rq').textContent = cat.q;
+    layer.querySelectorAll('.rcard').forEach((el,s) => {
+      const it = RANK_ITEMS[S.pair[s]];
+      el.className = 'rcard'; el.querySelector('b').textContent = it.n; el.querySelector('.v').textContent = '';
+      const c = el.querySelector('canvas'); c.width = cat.icon.width; c.height = cat.icon.height;
+      const x = c.getContext('2d'); x.clearRect(0,0,c.width,c.height); x.drawImage(cat.icon,0,0);
+    });
+    const r = layer.querySelector('.rres'); r.textContent = ''; r.className = 'rres';
+  },
+  update(dt){
+    if (S.dead) return;
+    if (S.phase==='ask'){
+      S.qt -= dt;
+      if (input.taps.length) this.answer(input.taps[0].x < W/2 ? 0 : 1);
+      else if (S.qt<=0) this.answer(-1);
+    } else {
+      S.showT -= dt;
+      if (S.showT<=0){ if (S.hearts<=0) die('miss', W/2, H/2, null, true); else this.next(); }
+    }
+  },
+  answer(side){
+    const its = S.pair.map(i => RANK_ITEMS[i]), win = its[0].v > its[1].v ? 0 : 1, ok = side===win;
+    S.phase = 'show'; S.showT = 1.4;
+    layer.querySelectorAll('.rcard').forEach((el,s) => {
+      el.querySelector('.v').textContent = its[s].d;
+      el.classList.add(s===win ? 'win' : 'lose');
+      if (s===side) el.classList.add('picked');
+    });
+    const r = layer.querySelector('.rres');
+    if (ok){
+      S.score++; sfx.make(); r.className = 'rres ok'; r.textContent = 'せいかい！';
+      burst(side===0 ? W*.27 : W*.73, H*.48, 18, ['#5ee05e','#ffd23a','#f4f8ff'], 55, .6);
+      const wi = S.pair[win], li = S.pair[1-win];
+      if (!S.foundRun.includes(wi)) discover(wi); else if (!S.foundRun.includes(li)) discover(li);
+    } else {
+      S.hearts--; S.shake = 3; sfx.wrong(); r.className = 'rres ng';
+      r.textContent = side<0 ? '時間切れ' : 'ざんねん…';
+    }
+  },
+  render(t){
+    ctx.fillStyle = '#0d1850'; ctx.fillRect(-8,-8,W+16,H+16);
+    // spotlight rays
+    ctx.fillStyle = 'rgba(255,210,58,.05)';
+    for (let i=0;i<5;i++){ const x = W/2 + Math.sin(t*.4+i*1.3)*60; ctx.beginPath(); ctx.moveTo(W/2, -10); ctx.lineTo(x-14, H); ctx.lineTo(x+14, H); ctx.fill(); }
+    drawStars(.6, t);
+    // podium
+    const by = H-34;
+    const blocks = [[W/2-14, by-14, 28, '#ffd23a'], [W/2-42, by-6, 28, '#c8d0e0'], [W/2+14, by, 28, '#d9864a']];
+    for (const [x,y,w,c] of blocks){ ctx.fillStyle = c; ctx.fillRect(x, y, w, H-y); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x+w-3, y, 3, H-y); }
+    ctx.drawImage(TROPHY, W/2-4, by-25);
+  },
+  hud(){
+    const frac = S.phase==='ask' ? S.qt/S.qmax : 0;
+    return {main:`${S.score} もん`, chip:`${RANK_CATS[RANK_ITEMS[S.pair[0]].c].label}くらべ`, label:'時間', pct:frac*100, kind:'', warn:S.phase==='ask' && frac<.3,
+      hearts:S.hearts, maxHearts:3};
+  },
+};
+
+const GAMES = [Rocket, Element, Dig, Hop, Thermo, Rank];
+const GBY = Object.fromEntries(GAMES.map(g => [g.id, g]));
+const TOTAL_FACTS = GAMES.reduce((s,g)=>s+g.facts.length, 0);
+
+/* ================= engine ================= */
+let mode = 'home';     // home | play | over | dex
+let paused = false;
+let GAME = null;
+let S = null;
+const input = {hold:false, taps:[]};   // taps: touches made during play (not the one that starts the game)
+const layer = $('#layer');             // per-game HTML labels drawn over the canvas
+const keys = {left:false, right:false};
+let drag = null;
+
+function layout(){
+  const r = $('#app').getBoundingClientRect();
+  const sw = Math.min(r.width, r.height*0.5625);
+  H = clamp(Math.round(W*r.height/sw), 200, 360);
+  const sh = Math.min(r.height, sw*H/W);
+  stage.style.width = sw+'px'; stage.style.height = sh+'px';
+  stage.style.fontSize = (sw/22)+'px';
+  cv.width = W; cv.height = H; ctx.imageSmoothingEnabled = false;
+  STARS.forEach(s => { if (s.y>H) s.y = Math.random()*H; });
+}
+
+function die(reason, x, y, sound, gentle){
+  if (S.dead) return;
+  S.dead = true; S.reason = reason;
+  if (!gentle){ S.shake = 7; burst(x, y, 46, ['#ffd23a','#ff9a3a','#ff3b5c','#f4f8ff'], 90, 1.0); }
+  else if (reason==='clear') burst(x, y, 60, ['#ffd23a','#3ee6ff','#5ee05e','#f4f8ff'], 90, 1.2);
+  if (sound) sound(); else sfx.wrong();
+  if (!gentle && navigator.vibrate){ try { navigator.vibrate(120); } catch(e){} }
+}
+
+let factTimer = 0;
+function discover(i, extra=''){
+  if (S.foundRun.includes(i)) return;
+  S.foundRun.push(i);
+  const sv = gsave(GAME.id);
+  if (!sv.found.includes(i)){ sv.found.push(i); persist(); }
+  const f = GAME.facts[i];
+  $('#factL').textContent = 'なぜ？発見！' + extra;
+  $('#factK').textContent = f.k;
+  $('#factT').textContent = f.t;
+  $('#factB').textContent = f.b;
+  const el = $('#fact'); el.classList.add('show');
+  clearTimeout(factTimer); factTimer = setTimeout(() => el.classList.remove('show'), 3400);
+  sfx.fact();
+}
+
+const screens = ['home','over','dex','pause'];
+function show(id){
+  screens.forEach(s => { $('#'+s).hidden = s!==id; });
+  if (id==='home') setTimeout(() => goSlide(homeIdx, false), 0);   // re-snap after the carousel becomes visible again
+}
+
+function startGame(id){
+  audioOn(); sfx.start();
+  GAME = GBY[id];
+  // ready: the game waits on its instructions until the player touches the screen
+  S = {t:0, ready:true, diff:gsave(id).diff, dead:false, deadT:0, overShown:false, reason:'', parts:[], shake:0, foundRun:[], score:0, x:W/2, tx:W/2};
+  layer.textContent = ''; layer.hidden = true; input.taps.length = 0;
+  GAME.start();
+  mode = 'play'; paused = false; drag = null; input.hold = false; lastHud = ''; lastHearts = null;
+  show(null); $('#hud').hidden = false;
+  $('#fact').classList.remove('show');
+  const hint = $('#hint');
+  const diffBtns = DIFFS.map(d => `<button type="button" class="dbtn ${d}" data-d="${d}" aria-pressed="${d===S.diff}">${DIFF_LABEL[d]}</button>`).join('');
+  hint.innerHTML = `<span class="how">あそびかた</span>${GAME.hint}<span class="diffs" role="group" aria-label="むずかしさ">${diffBtns}</span><span class="tap">▶ タッチしてスタート</span>`;
+  hint.querySelectorAll('.dbtn').forEach(b => b.addEventListener('click', () => {
+    const sv = gsave(GAME.id); if (sv.diff === b.dataset.d) return;
+    sv.diff = b.dataset.d; persist(); sfx.click(); startGame(GAME.id);
+  }));
+  hint.hidden = false;
+}
+function beginRun(){
+  if (!S || !S.ready) return;
+  S.ready = false; $('#hint').hidden = true; layer.hidden = false; input.taps.length = 0; sfx.click();
+}
+
+const hud = {main:$('#hudMain'), chip:$('#hudChip'), gauge:$('#gauge'), label:$('#gLabel'), bar:$('#gBar'), big:$('#bigTime'), plus:$('#bigPlus'), alert:$('#alert'), hearts:$('#hearts')};
+let lastHearts = null;
+const HEART_FULL = spr(['.RR.RR.','RWRRRRR','RRRRRRR','.RRRRR.','..RRR..','...R...']).toDataURL();
+const HEART_EMPTY = spr(['.GG.GG.','G..G..G','G.....G','.G...G.','..G.G..','...G...']).toDataURL();
+let plusTimer = 0;
+function flashPlus(text){
+  hud.plus.textContent = text; hud.plus.classList.remove('show'); void hud.plus.offsetWidth; hud.plus.classList.add('show');
+  clearTimeout(plusTimer); plusTimer = setTimeout(() => hud.plus.classList.remove('show'), 1300);
+}
+function hideBig(){ hud.big.hidden = true; hud.alert.hidden = true; }
+let lastHud = '';
+function updateHud(){
+  const h = GAME.hud();
+  const key = h.main+h.chip+h.label+h.big;
+  if (key !== lastHud){
+    hud.main.textContent = h.main; hud.chip.textContent = h.chip;
+    if (h.label) hud.label.textContent = h.label;
+    if (h.big != null) hud.big.firstChild.nodeValue = String(h.big);
+    lastHud = key;
+  }
+  hud.gauge.hidden = !h.label;
+  if (h.label){
+    hud.bar.style.width = clamp(h.pct,0,100).toFixed(0)+'%';
+    hud.gauge.className = 'gauge' + (h.kind ? ' '+h.kind : '') + (h.warn ? ' warn' : '');
+  }
+  hud.big.hidden = h.big == null;
+  hud.hearts.hidden = h.hearts == null;
+  if (h.hearts != null && h.hearts !== lastHearts){
+    const lostNow = lastHearts != null && h.hearts < lastHearts;
+    hud.hearts.textContent = '';
+    for (let i=0;i<h.maxHearts;i++){
+      const img = document.createElement('img'); img.alt = '';
+      img.src = i < h.hearts ? HEART_FULL : HEART_EMPTY;
+      if (lostNow && i === h.hearts) img.className = 'lost';
+      hud.hearts.append(img);
+    }
+    lastHearts = h.hearts;
+  }
+  hud.alert.hidden = !h.alert;
+  if (h.alert && hud.alert.textContent !== h.alert) hud.alert.textContent = h.alert;
+  hud.big.classList.toggle('warn', !!h.bigWarn);
+}
+
+function showOver(){
+  mode = 'over';
+  $('#hud').hidden = true; $('#hint').hidden = true; hideBig(); layer.hidden = true;
+  const sv = gsave(GAME.id), sc = S.score, isNew = sc > sv.bests[S.diff];
+  if (isNew){ sv.bests[S.diff] = sc; persist(); if (S.reason!=='clear') setTimeout(sfx.rec, 250); }
+  const [en, ja] = GAME.reasons[S.reason];
+  const r = $('#reason'); r.textContent = en; r.className = 'reason' + (S.reason==='clear' ? ' good' : '');
+  $('#reasonJa').textContent = ja;
+  $('#scoreLbl').textContent = `${GAME.scoreLabel}（${DIFF_LABEL[S.diff]}）`;
+  $('#overScore').textContent = GAME.fmt(sc);
+  const rec = $('#rec');
+  rec.className = 'rec' + (isNew ? ' new' : '');
+  rec.textContent = isNew ? 'NEW RECORD!' : `${DIFF_LABEL[S.diff]}のベスト ${GAME.fmt(sv.bests[S.diff])}`;
+  const box = $('#foundBox'); box.textContent = '';
+  const h = document.createElement('h3');
+  if (S.foundRun.length){
+    h.textContent = `今回見つけた「なぜ？」 ${S.foundRun.length}こ`; box.append(h);
+    const ul = document.createElement('ul');
+    S.foundRun.slice(-4).forEach(i => { const li = document.createElement('li'); li.textContent = GAME.facts[i].t; ul.append(li); });
+    box.append(ul);
+  } else {
+    h.textContent = '次の発見まで、あと少し'; box.append(h);
+  }
+  const ni = GAME.facts.findIndex((f,i) => !sv.found.includes(i));
+  const p = document.createElement('p'); p.className = 'next';
+  p.textContent = ni>=0 ? `次の発見：${GAME.lockHint(ni)}` : 'このゲームの「なぜ？」はぜんぶ発見した！';
+  box.append(p);
+  $('#shareText').hidden = true;
+  $('#shareBtn').textContent = '結果をコピー';
+  show('over');
+}
+
+/* ---------- home ---------- */
+const carousel = $('#cards');
+let homeIdx = clamp(SAVE.homeIdx|0, 0, GAMES.length-1);
+function goSlide(i, smooth=true){
+  homeIdx = (i + GAMES.length) % GAMES.length;
+  carousel.scrollTo({left: homeIdx*carousel.clientWidth, behavior: smooth ? 'smooth' : 'auto'});
+  markDots();
+}
+function markDots(){
+  document.querySelectorAll('#dots button').forEach((d,i) => d.setAttribute('aria-current', String(i===homeIdx)));
+}
+carousel.addEventListener('scroll', () => {
+  const i = clamp(Math.round(carousel.scrollLeft / Math.max(1, carousel.clientWidth)), 0, GAMES.length-1);
+  if (i !== homeIdx){ homeIdx = i; markDots(); sfx.click(); }
+  if (SAVE.homeIdx !== homeIdx){ SAVE.homeIdx = homeIdx; persist(); }
+}, {passive:true});
+$('#prevBtn').addEventListener('click', () => { audioOn(); goSlide(homeIdx-1); });
+$('#nextBtn').addEventListener('click', () => { audioOn(); goSlide(homeIdx+1); });
+addEventListener('resize', () => { if (mode==='home') goSlide(homeIdx, false); });
+
+function buildHome(){
+  const wrap = carousel; wrap.textContent = '';
+  const dots = $('#dots'); dots.textContent = '';
+  GAMES.forEach((g, gi) => {
+    const d = document.createElement('button'); d.type = 'button'; d.setAttribute('aria-label', g.title);
+    d.addEventListener('click', () => { audioOn(); goSlide(gi); });
+    dots.append(d);
+  });
+  for (const g of GAMES){
+    const slide = document.createElement('div'); slide.className = 'slide';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'card'; b.dataset.id = g.id;
+    const ic = document.createElement('span'); ic.className = 'ic';
+    const c = document.createElement('canvas'); c.className = 'pix'; c.width = g.icon.width; c.height = g.icon.height;
+    c.getContext('2d').drawImage(g.icon, 0, 0); ic.append(c);
+    const tx = document.createElement('div'); tx.className = 'ctext';
+    tx.innerHTML = `<span class="cat"></span><h2></h2><p class="sub"></p><p class="best"><span class="bl"></span><b></b></p>`;
+    tx.querySelector('.cat').textContent = g.cat;
+    tx.querySelector('h2').textContent = g.title;
+    tx.querySelector('.sub').textContent = g.sub;
+    const go = document.createElement('span'); go.className = 'go'; go.textContent = '▶ あそぶ';
+    b.append(ic, tx, go);
+    b.addEventListener('click', () => startGame(g.id));
+    slide.append(b); wrap.append(slide);
+  }
+}
+function refreshHome(){
+  document.querySelectorAll('#cards .card').forEach(b => {
+    const g = GBY[b.dataset.id], sv = gsave(g.id);
+    const best = sv.bests[sv.diff];
+    b.querySelector('.best .bl').textContent = `ベスト（${DIFF_LABEL[sv.diff]}）`;
+    b.querySelector('.best b').textContent = best>0 ? g.fmt(best) : '—';
+  });
+  const found = GAMES.reduce((s,g)=>s+gsave(g.id).found.length, 0);
+  $('#dexCount').textContent = `${found}/${TOTAL_FACTS}`;
+  $('#muteBtn').textContent = SAVE.mute ? '音 OFF' : '音 ON';
+}
+
+/* ---------- 図鑑 ---------- */
+let dexId = 'rocket';
+function renderDex(){
+  const tabs = $('#dexTabs'); tabs.textContent = '';
+  for (const g of GAMES){
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'tab'; t.setAttribute('role','tab');
+    t.textContent = g.short; t.setAttribute('aria-selected', String(g.id===dexId));
+    t.addEventListener('click', () => { sfx.click(); dexId = g.id; renderDex(); });
+    tabs.append(t);
+  }
+  const g = GBY[dexId], sv = gsave(g.id);
+  const list = $('#dexList'); list.textContent = '';
+  g.facts.forEach((f,i) => {
+    const got = sv.found.includes(i);
+    const li = document.createElement('li'); if (!got) li.className = 'lock';
+    const k = document.createElement('span'); k.className = 'k'; k.textContent = `No.${String(i+1).padStart(2,'0')}  ${got ? f.k : '???'}`;
+    const b = document.createElement('b'); b.textContent = got ? f.t : '？？？';
+    const p = document.createElement('p'); p.textContent = got ? f.b : g.lockHint(i);
+    li.append(k, b, p); list.append(li);
+  });
+  list.scrollTop = 0;
+  $('#dexSub').textContent = `${g.title}：${sv.found.length} / ${g.facts.length} 発見`;
+}
+
+/* ---------- buttons ---------- */
+$('#againBtn').addEventListener('click', () => startGame(GAME.id));
+$('#homeBtn').addEventListener('click', () => { audioOn(); sfx.click(); goHome(); });
+$('#dexBtn').addEventListener('click', () => { audioOn(); sfx.click(); mode='dex'; renderDex(); show('dex'); });
+$('#dexBack').addEventListener('click', () => { sfx.click(); mode='home'; refreshHome(); show('home'); });
+$('#muteBtn').addEventListener('click', () => { SAVE.mute = !SAVE.mute; persist(); audioOn(); refreshHome(); sfx.click(); });
+function pauseGame(){
+  if (!playing()) return;
+  paused = true; input.hold = false; drag = null;
+  $('#hint').hidden = true;
+  sfx.click(); show('pause');
+}
+function goHome(){
+  // keep the record from an abandoned run
+  if (S && GAME && !S.dead){ const sv = gsave(GAME.id); if (S.score > sv.bests[S.diff]){ sv.bests[S.diff] = S.score; persist(); } }
+  paused = false; mode = 'home'; input.hold = false; drag = null;
+  $('#hud').hidden = true; $('#hint').hidden = true; $('#fact').classList.remove('show'); hideBig(); layer.hidden = true;
+  refreshHome(); show('home');
+}
+$('#pauseBtn').addEventListener('click', pauseGame);
+$('#resumeBtn').addEventListener('click', () => { audioOn(); sfx.click(); paused = false; show(null); last = performance.now(); });
+$('#retryBtn').addEventListener('click', () => startGame(GAME.id));
+$('#quitBtn').addEventListener('click', () => { sfx.click(); goHome(); });
+$('#shareBtn').addEventListener('click', () => {
+  const sv = gsave(GAME.id);
+  const text = `PixelScience Games【${DIFF_LABEL[S.diff]}】${GAME.share(S.score)} なぜ？図鑑 ${sv.found.length}/${GAME.facts.length} #PixelScience`;
+  const out = $('#shareText'); out.textContent = text;
+  const done = ok => { $('#shareBtn').textContent = ok ? 'コピーしました' : '下の文を長押しでコピー'; out.hidden = false; };
+  try { navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); } catch(e){ done(false); }
+});
+
+/* ---------- input ----------
+   Steering games use relative drag: touching anywhere does not move the player;
+   only how far the finger slides does (like a trackpad). The dig game uses press-and-hold. */
+const DRAG_GAIN = 1.25;
+const playing = () => mode==='play' && !paused && S && !S.dead;
+const toGame = clientX => { const r = stage.getBoundingClientRect(); return (clientX - r.left)/r.width*W; };
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('button') || !playing()) return;
+  const wasReady = S.ready;
+  input.hold = true;
+  beginRun();
+  if (!wasReady) input.taps.push({x:toGame(e.clientX)});
+  if (GAME.steer){ drag = {id:e.pointerId, startX:toGame(e.clientX), startTx:S.x}; S.tx = S.x; }
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId!==drag.id || !playing()) return;
+  const nx = drag.startTx + (toGame(e.clientX) - drag.startX)*DRAG_GAIN;
+  S.tx = clamp(nx, 7, W-7);
+  if (nx!==S.tx){ drag.startX = toGame(e.clientX); drag.startTx = S.tx; }
+});
+const endPointer = e => { input.hold = false; if (drag && e.pointerId===drag.id) drag = null; };
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+stage.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('keydown', e => {
+  if (mode==='home' && (e.key==='ArrowLeft' || e.key==='ArrowRight') && !e.target.closest?.('input,textarea')){
+    audioOn(); goSlide(homeIdx + (e.key==='ArrowLeft' ? -1 : 1)); e.preventDefault(); return;
+  }
+  if (e.key==='ArrowLeft'||e.key==='a') keys.left = true;
+  if (e.key==='ArrowRight'||e.key==='d') keys.right = true;
+  if (mode==='play' && !paused && S && !e.repeat){
+    const wasReady = S.ready;
+    if (e.key===' '||e.key==='ArrowDown'){ input.hold = true; beginRun(); if (!wasReady) input.taps.push({x:W/2}); e.preventDefault(); }
+    if (e.key==='ArrowLeft'||e.key==='ArrowRight'){ beginRun(); if (!wasReady && !GAME.steer) input.taps.push({x: e.key==='ArrowLeft' ? 0 : W}); }
+  }
+  if (e.key==='Escape' || e.key==='p'){ if (mode==='play' && paused){ $('#resumeBtn').click(); } else pauseGame(); }
+});
+addEventListener('keyup', e => {
+  if (e.key==='ArrowLeft'||e.key==='a') keys.left = false;
+  if (e.key==='ArrowRight'||e.key==='d') keys.right = false;
+  if (e.key===' '||e.key==='ArrowDown') input.hold = false;
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pauseGame();
+});
+addEventListener('resize', layout);
+
+/* ================= home scene ================= */
+// night sky at the top fading into a daytime sky, green hills, and the professor + robots from the videos
+const HOME_SKY = [[0,'#0b1440'],[.38,'#1d3f9a'],[.62,'#4f9be8'],[.8,'#8fd0f7']].map(([f,c]) => [f, hex(c)]);
+let homeSkyCache = null, homeSat = -20;
+const walkers = [{x:20, v:9, i:0}, {x:100, v:-7, i:1}];
+const HERO = {L:$('#heroL'), R:$('#heroR')};
+HERO.L.width = PROF[0].width; HERO.L.height = PROF[0].height;
+HERO.R.width = ROBOTS[0][0].width; HERO.R.height = ROBOTS[0][0].height + 4;
+for (const c of [HERO.L, HERO.R]) c.style.width = (c.width*22/144).toFixed(3)+'em';
+function renderHome(t, dt){
+  if (!homeSkyCache || homeSkyCache.height !== H){
+    homeSkyCache = document.createElement('canvas'); homeSkyCache.width = W; homeSkyCache.height = H;
+    const x = homeSkyCache.getContext('2d');
+    for (let y=0;y<H;y++){
+      const f = y/H; let k = 1; while (k<HOME_SKY.length-1 && f>HOME_SKY[k][0]) k++;
+      const [f0,a] = HOME_SKY[k-1], [f1,b] = HOME_SKY[k];
+      const c = mix(a, b, clamp((f-f0)/(f1-f0),0,1));
+      // ordered dither between bands, like the videos' skies
+      x.fillStyle = `rgb(${c.map(v=>v|0).join(',')})`; x.fillRect(0,y,W,1);
+      if (y%2===0){ const c2 = mix(a,b,clamp((f-f0)/(f1-f0)+.06,0,1)); x.fillStyle = `rgb(${c2.map(v=>v|0).join(',')})`; for (let i=(y/2)%2;i<W;i+=2) x.fillRect(i,y,1,1); }
+    }
+  }
+  ctx.drawImage(homeSkyCache, 0, 0);
+  stepStars(4, dt);
+  ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H*.4); ctx.clip(); drawStars(1, t); ctx.restore();
+  homeSat += 5*dt; if (homeSat > W+20) homeSat = -20;
+  ctx.drawImage(SAT, Math.round(homeSat), Math.round(H*.06));
+  // clouds
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  [[10,.56,26],[96,.62,30],[50,.7,20]].forEach(([x0,yf,w],i) => {
+    const x = Math.round(((x0 + t*(3+i)) % (W+40)) - 30), y = Math.round(H*yf);
+    ctx.fillRect(x, y+3, w, 4); ctx.fillRect(x+4, y, w-10, 4); ctx.fillRect(x+(w*.4|0), y-2, w*.3|0, 3);
+  });
+  // hills: the ground line sits at the bottom of the empty "field" strip on the home screen, so the robots are never
+  // hidden behind the game card
+  let gy = Math.round(H*.88);
+  const field = $('#field');
+  if (mode==='home' && field.offsetParent){
+    const fr = field.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    gy = Math.round((fr.bottom - sr.top)/sr.height*H);
+  }
+  const hill = (base, amp, k, ph, c1, c2) => { for (let x=0;x<W;x++){ const y = Math.round(base - Math.sin(x*k+ph)*amp);
+    ctx.fillStyle = c1; ctx.fillRect(x, y, 1, H-y); ctx.fillStyle = c2; ctx.fillRect(x, y, 1, 1); } };
+  hill(gy-10, 6, .05, 1, '#3f8f3a', '#5cb84a');
+  hill(gy+2, 3, .07, 3, '#55b041', '#8fe066');
+  // flowers on the near hill
+  for (let x=6;x<W;x+=17){ const y = gy+6+((x*7)%5); ctx.fillStyle = x%2 ? '#ff6f91' : '#fff07a'; ctx.fillRect(x, y, 2, 2); }
+  // robots strolling on the hill
+  for (const w of walkers){
+    w.x += w.v*dt;
+    if (w.x < 4){ w.x = 4; w.v = Math.abs(w.v); } if (w.x > W-22){ w.x = W-22; w.v = -Math.abs(w.v); }
+    const img = robotFrame(w.i+1, t), hop = Math.floor(t*6+w.i)%2;
+    ctx.drawImage(img, Math.round(w.x), gy - img.height - hop);
+  }
+  // logo flankers: the professor (left) and a hopping robot (right)
+  if (mode==='home'){
+    const blink = (t%3.2) < .12;
+    const xl = HERO.L.getContext('2d'); xl.clearRect(0,0,HERO.L.width,HERO.L.height); xl.drawImage(PROF[blink?1:0], 0, 0);
+    const xr = HERO.R.getContext('2d'); xr.clearRect(0,0,HERO.R.width,HERO.R.height);
+    const hop = Math.max(0, Math.round(Math.sin(t*5)*4));
+    xr.drawImage(robotFrame(0, t), 0, 4-hop);
+  }
+}
+
+/* ================= loop ================= */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now;
+  const t = now/1000;
+  if ((mode==='play' || mode==='over') && S){
+    if (!paused && !S.ready){
+      S.t += dt;
+      if (GAME.steer && !S.dead){
+        if (keys.left) S.tx -= 150*dt;
+        if (keys.right) S.tx += 150*dt;
+        S.tx = clamp(S.tx, 7, W-7);
+      }
+      GAME.update(dt);
+      input.taps.length = 0;
+      for (const p of S.parts){ p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; }
+      S.parts = S.parts.filter(p => p.life>0);
+      S.shake = Math.max(0, S.shake - dt*20);
+      if (S.dead){ S.deadT += dt; if (S.deadT>1.1 && !S.overShown){ S.overShown = true; showOver(); } }
+    }
+    ctx.save();
+    if (S.shake>0) ctx.translate(Math.round(rnd(-S.shake,S.shake)), Math.round(rnd(-S.shake,S.shake)));
+    GAME.render(t);
+    for (const p of S.parts){ ctx.globalAlpha = clamp(p.life/p.max*1.5,0,1); ctx.fillStyle=p.c; ctx.fillRect(p.x|0, p.y|0, p.s, p.s); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    if (mode==='play') updateHud();
+  } else {
+    renderHome(t, dt);
+  }
+  requestAnimationFrame(frame);
+}
+buildHome(); layout(); refreshHome(); show('home');
+requestAnimationFrame(frame);
+})();
+</script>
