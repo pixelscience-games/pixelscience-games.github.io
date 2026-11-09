@@ -9,8 +9,10 @@
 - `serve.mjs` — 手元で確認するサーバー（http://localhost:5178 、公開版は /docs/）
 - `docs/` — GitHub Pages で公開されるサイト（build.mjs が作る。手で編集しない）
 
+公開URL: https://pixelscience-games.github.io/
+
 ## 更新のしかた
 ```bash
-node build.mjs
+SITE_URL=https://pixelscience-games.github.io/ node build.mjs
 git add -A && git commit -m "更新内容" && git push
 ```
