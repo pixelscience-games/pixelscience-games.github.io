@@ -1,6 +1,7 @@
 // Builds the public website into ./docs (served by GitHub Pages).
-//   node build.mjs            → docs/index.html, manifest, icons, service worker
-//   SITE_URL=https://…/ node build.mjs   → also fills the absolute link-preview (OG) image URL
+//   node build.mjs   → docs/index.html, manifest, icons, service worker
+// Settings come from site.config.json (siteUrl for link previews, gaId = Google Analytics measurement ID);
+// SITE_URL / GA_ID environment variables override them.
 // index.html stays the single source of the game (it is also what the claude.ai artifact publishes).
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +10,11 @@ import zlib from 'node:zlib';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(root, 'docs');
-const SITE_URL = (process.env.SITE_URL || '').replace(/\/?$/, '/');
+let cfg = {};
+try { cfg = JSON.parse(await readFile(path.join(root, 'site.config.json'), 'utf8')); } catch {}
+const SITE_URL = (process.env.SITE_URL || cfg.siteUrl || '').replace(/\/?$/, '/');
+const GA_ID = (process.env.GA_ID ?? cfg.gaId ?? '').trim();
+if (GA_ID && !/^G-[A-Z0-9]{4,}$/.test(GA_ID)) throw new Error(`gaId "${GA_ID}" does not look like a GA4 measurement ID (G-XXXXXXX)`);
 const VERSION = new Date().toISOString().replace(/\D/g, '').slice(0, 12);
 
 const TITLE = 'PixelScience Games';
@@ -109,7 +114,15 @@ ${SITE_URL !== '/' ? `<meta property="og:url" content="${SITE_URL}">\n` : ''}<me
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>html{box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}</style>
-${headPart.trim()}
+${GA_ID ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){ dataLayer.push(arguments); }
+gtag('js', new Date());
+gtag('set', 'user_properties', {display_mode: (matchMedia('(display-mode: standalone)').matches || navigator.standalone) ? 'home_screen' : 'browser'});
+gtag('config', '${GA_ID}');
+</script>
+` : ''}${headPart.trim()}
 </head>
 <body>
 ${bodyPart.trim()}
@@ -158,4 +171,4 @@ await writeFile(path.join(out, 'icon-192.png'), icon(192));
 await writeFile(path.join(out, 'icon-512.png'), icon(512));
 await writeFile(path.join(out, 'icon-maskable-512.png'), icon(512, { maskable: true }));
 await writeFile(path.join(out, 'apple-touch-icon.png'), icon(180, { maskable: true }));
-console.log(`built docs/ (version ${VERSION})${SITE_URL !== '/' ? ' for ' + SITE_URL : ''}`);
+console.log(`built docs/ (version ${VERSION})${SITE_URL !== '/' ? ' for ' + SITE_URL : ''}${GA_ID ? ' with Google Analytics ' + GA_ID : ' (no analytics)'}`);

@@ -11,8 +11,10 @@
 
 公開URL: https://pixelscience-games.github.io/
 
+- `site.config.json` — 公開URLと Google アナリティクスの測定ID（build.mjs が読む）
+
 ## 更新のしかた
 ```bash
-SITE_URL=https://pixelscience-games.github.io/ node build.mjs
+node build.mjs
 git add -A && git commit -m "更新内容" && git push
 ```

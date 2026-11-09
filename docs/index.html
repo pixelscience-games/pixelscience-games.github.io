@@ -19,6 +19,14 @@
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>html{box-sizing:border-box;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WG2EQK65PM"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){ dataLayer.push(arguments); }
+gtag('js', new Date());
+gtag('set', 'user_properties', {display_mode: (matchMedia('(display-mode: standalone)').matches || navigator.standalone) ? 'home_screen' : 'browser'});
+gtag('config', 'G-WG2EQK65PM');
+</script>
 <title>PixelScience Games</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -112,7 +120,12 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .install .plus{display:inline-grid;place-items:center;width:1.2em;height:1.2em;border-radius:50%;background:var(--ink);color:var(--cyan);font-size:.85em}
 .install:active{transform:translateY(.15em)}
 .install:focus-visible{outline:.15em solid var(--white);outline-offset:.15em}
-#install{background:rgba(7,11,43,.9);gap:.8em}
+#install,#privacy{background:rgba(7,11,43,.92);gap:.8em}
+.plink{font:inherit;font-size:.65em;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer;padding:.2em}
+.ptext{max-width:19em;display:flex;flex-direction:column;gap:.6em;font-size:.82em;line-height:1.65;text-align:left;
+  background:var(--panel);border:.12em solid rgba(169,184,238,.4);border-radius:.6em;padding:.8em 1em}
+.ptext b{color:var(--yellow);font-weight:400}
+.ptext a{color:var(--cyan)}
 #installIcon{width:4.2em;height:auto;border-radius:.9em}
 .steps{width:100%;max-width:19em;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.55em;counter-reset:st;text-align:left}
 .steps li{counter-increment:st;display:flex;gap:.7em;align-items:flex-start;background:var(--panel);border:.12em solid rgba(169,184,238,.4);
@@ -288,6 +301,18 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
         <button id="muteBtn" class="btn" type="button">音 ON</button>
       </div>
       <button id="installBtn" class="install" type="button" hidden><span class="plus" aria-hidden="true">＋</span>ホーム画面に追加</button>
+      <button id="privacyBtn" class="plink" type="button" hidden>アクセス解析について</button>
+    </section>
+
+    <section id="privacy" class="screen" hidden>
+      <h2 class="dt">アクセス解析について</h2>
+      <div class="ptext">
+        <p>このサイトでは、ゲームをよりよくするために <b>Google アナリティクス</b> を使っています。</p>
+        <p>Google アナリティクスは Cookie を使って、どのゲームがどのくらい遊ばれたか、記録、むずかしさ、使っている端末の種類やおおまかな地域などを集めます。</p>
+        <p>名前・メールアドレスなど、あなたを特定できる情報は集めていません。</p>
+        <p>集めた情報の扱いは、<a href="https://policies.google.com/technologies/partner-sites?hl=ja" target="_blank" rel="noopener">Google のポリシー</a>をごらんください。Cookie を使いたくない場合は、ブラウザの設定で無効にできます。</p>
+      </div>
+      <button id="privacyClose" class="btn primary" type="button">とじる</button>
     </section>
 
     <section id="install" class="screen" hidden>
@@ -1679,12 +1704,22 @@ function die(reason, x, y, sound, gentle){
   if (!gentle && navigator.vibrate){ try { navigator.vibrate(120); } catch(e){} }
 }
 
+/* ---------- analytics ----------
+   Only the public site loads Google Analytics (build.mjs adds the tag); here track() does nothing.
+   No names, emails or other personal data are sent — only which game, difficulty, score and similar play events. */
+function track(name, params={}){
+  try { if (typeof window.gtag === 'function') window.gtag('event', name, params); } catch(e){}
+}
+const runInfo = () => ({game_id:GAME.id, difficulty:S.diff, score:Math.round(S.score*10)/10, play_seconds:Math.round(S.t)});
+
 let factTimer = 0;
 function discover(i, extra=''){
   if (S.foundRun.includes(i)) return;
   S.foundRun.push(i);
   const sv = gsave(GAME.id);
-  if (!sv.found.includes(i)){ sv.found.push(i); persist(); }
+  const firstTime = !sv.found.includes(i);
+  if (firstTime){ sv.found.push(i); persist(); }
+  track('fact_found', {game_id:GAME.id, fact_no:i+1, first_time:firstTime});
   const f = GAME.facts[i];
   $('#factL').textContent = 'なぜ？発見！' + extra;
   $('#factK').textContent = f.k;
@@ -1695,7 +1730,7 @@ function discover(i, extra=''){
   sfx.fact();
 }
 
-const screens = ['home','over','dex','pause','install'];
+const screens = ['home','over','dex','pause','install','privacy'];
 function show(id){
   screens.forEach(s => { $('#'+s).hidden = s!==id; });
   if (id==='home') setTimeout(() => goSlide(homeIdx, false), 0);   // re-snap after the carousel becomes visible again
@@ -1723,6 +1758,7 @@ function startGame(id){
 function beginRun(){
   if (!S || !S.ready) return;
   S.ready = false; $('#hint').hidden = true; layer.hidden = false; input.taps.length = 0; sfx.click();
+  track('game_start', {game_id:GAME.id, difficulty:S.diff});
 }
 
 const hud = {main:$('#hudMain'), chip:$('#hudChip'), gauge:$('#gauge'), label:$('#gLabel'), bar:$('#gBar'), big:$('#bigTime'), plus:$('#bigPlus'), alert:$('#alert'), hearts:$('#hearts')};
@@ -1773,6 +1809,7 @@ function showOver(){
   $('#hud').hidden = true; $('#hint').hidden = true; hideBig(); layer.hidden = true;
   const sv = gsave(GAME.id), sc = S.score, isNew = sc > sv.bests[S.diff];
   if (isNew){ sv.bests[S.diff] = sc; persist(); if (S.reason!=='clear') setTimeout(sfx.rec, 250); }
+  track('game_over', {...runInfo(), reason:S.reason, new_record:isNew, facts_found:S.foundRun.length});
   const [en, ja] = GAME.reasons[S.reason];
   const r = $('#reason'); r.textContent = en; r.className = 'reason' + (S.reason==='clear' ? ' good' : '');
   $('#reasonJa').textContent = ja;
@@ -1884,7 +1921,8 @@ function renderDex(){
 /* ---------- buttons ---------- */
 $('#againBtn').addEventListener('click', () => startGame(GAME.id));
 $('#homeBtn').addEventListener('click', () => { audioOn(); sfx.click(); goHome(); });
-$('#dexBtn').addEventListener('click', () => { audioOn(); sfx.click(); mode='dex'; renderDex(); show('dex'); });
+$('#dexBtn').addEventListener('click', () => { audioOn(); sfx.click(); mode='dex'; renderDex(); show('dex');
+  track('dex_open', {found_total: GAMES.reduce((s,g)=>s+gsave(g.id).found.length, 0)}); });
 $('#dexBack').addEventListener('click', () => { sfx.click(); mode='home'; refreshHome(); show('home'); });
 $('#muteBtn').addEventListener('click', () => { SAVE.mute = !SAVE.mute; persist(); audioOn(); refreshHome(); sfx.click(); });
 function pauseGame(){
@@ -1895,7 +1933,10 @@ function pauseGame(){
 }
 function goHome(){
   // keep the record from an abandoned run
-  if (S && GAME && !S.dead){ const sv = gsave(GAME.id); if (S.score > sv.bests[S.diff]){ sv.bests[S.diff] = S.score; persist(); } }
+  if (S && GAME && !S.dead){
+    const sv = gsave(GAME.id); if (S.score > sv.bests[S.diff]){ sv.bests[S.diff] = S.score; persist(); }
+    if (!S.ready) track('game_quit', runInfo());
+  }
   paused = false; mode = 'home'; input.hold = false; drag = null;
   $('#hud').hidden = true; $('#hint').hidden = true; $('#fact').classList.remove('show'); hideBig(); layer.hidden = true;
   refreshHome(); show('home');
@@ -1921,7 +1962,7 @@ const isStandalone = () => matchMedia('(display-mode: standalone)').matches || n
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 function refreshInstall(){ $('#installBtn').hidden = !canInstallHere || isStandalone(); }
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; refreshInstall(); });
-addEventListener('appinstalled', () => { installPrompt = null; refreshInstall(); });
+addEventListener('appinstalled', () => { installPrompt = null; refreshInstall(); track('app_installed'); });
 const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="共有ボタン"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 11v9h14v-9"/></svg>';
 const MENU_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-label="メニューボタン"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
 function showInstallHelp(){
@@ -1942,6 +1983,7 @@ function showInstallHelp(){
 }
 $('#installBtn').addEventListener('click', async () => {
   audioOn(); sfx.click();
+  track('install_click', {method: installPrompt ? 'browser_prompt' : (isIOS() ? 'ios_help' : 'help')});
   if (installPrompt){
     const p = installPrompt; installPrompt = null;
     try { await p.prompt(); await p.userChoice; } catch(e){ showInstallHelp(); }
@@ -1950,6 +1992,10 @@ $('#installBtn').addEventListener('click', async () => {
   showInstallHelp();
 });
 $('#installClose').addEventListener('click', () => { sfx.click(); show('home'); });
+// the notice is shown only where analytics actually runs (the public site)
+$('#privacyBtn').hidden = typeof window.gtag !== 'function';
+$('#privacyBtn').addEventListener('click', () => { audioOn(); sfx.click(); show('privacy'); });
+$('#privacyClose').addEventListener('click', () => { sfx.click(); show('home'); });
 refreshInstall();
 
 /* ---------- input ----------
