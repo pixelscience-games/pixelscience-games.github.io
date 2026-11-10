@@ -3,7 +3,7 @@
 // Settings come from site.config.json (siteUrl for link previews, gaId = Google Analytics measurement ID);
 // SITE_URL / GA_ID environment variables override them.
 // index.html stays the single source of the game (it is also what the claude.ai artifact publishes).
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -153,6 +153,11 @@ self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (req.mode === 'navigate'){   // the page: network first so updates show up, cache when offline
+    const scope = new URL(self.registration.scope).pathname;
+    if (url.pathname !== scope && url.pathname !== scope + 'index.html'){   // other pages (e.g. privacy-youtube.html): never stored as the game
+      e.respondWith(fetch(req).catch(() => caches.match(req)));
+      return;
+    }
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put('index.html', copy)); return r; }).catch(() => caches.match('index.html')));
     return;
   }
@@ -171,4 +176,7 @@ await writeFile(path.join(out, 'icon-192.png'), icon(192));
 await writeFile(path.join(out, 'icon-512.png'), icon(512));
 await writeFile(path.join(out, 'icon-maskable-512.png'), icon(512, { maskable: true }));
 await writeFile(path.join(out, 'apple-touch-icon.png'), icon(180, { maskable: true }));
+// standalone pages (e.g. the YouTube tool's privacy policy) are copied as they are from ./pages
+const pagesDir = path.join(root, 'pages');
+for (const f of await readdir(pagesDir).catch(() => [])) if (f.endsWith('.html')) await copyFile(path.join(pagesDir, f), path.join(out, f));
 console.log(`built docs/ (version ${VERSION})${SITE_URL !== '/' ? ' for ' + SITE_URL : ''}${GA_ID ? ' with Google Analytics ' + GA_ID : ' (no analytics)'}`);
