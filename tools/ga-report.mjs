@@ -71,8 +71,8 @@ table('全体', await report({ metrics: [{name:'activeUsers'},{name:'newUsers'},
   ['ユーザー','新規','セッション','平均滞在(秒)','表示回数']);
 table('日別', await report({ dimensions: [{name:'date'}], metrics: [{name:'activeUsers'},{name:'newUsers'}], orderBys: [{dimension:{dimensionName:'date'}}] }),
   ['日付','ユーザー','新規']);
-table('どこから来たか', await report({ dimensions: [{name:'sessionSource'},{name:'sessionMedium'}], metrics: [{name:'sessions'}], orderBys: [{metric:{metricName:'sessions'},desc:true}] }),
-  ['参照元','メディア','セッション']);
+table('どこから来たか', await report({ dimensions: [{name:'sessionSource'},{name:'sessionMedium'},{name:'sessionCampaignName'},{name:'sessionManualAdContent'}], metrics: [{name:'sessions'}], orderBys: [{metric:{metricName:'sessions'},desc:true}] }),
+  ['参照元','メディア','キャンペーン','コンテンツ(utm_content)','セッション']);
 table('端末', await report({ dimensions: [{name:'deviceCategory'},{name:'operatingSystem'}], metrics: [{name:'activeUsers'}], orderBys: [{metric:{metricName:'activeUsers'},desc:true}] }),
   ['端末','OS','ユーザー']);
 table('イベント', await report({ dimensions: [{name:'eventName'}], metrics: [{name:'eventCount'},{name:'totalUsers'}], orderBys: [{metric:{metricName:'eventCount'},desc:true}] }),

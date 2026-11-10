@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PS Games">
 <meta property="og:type" content="website">
-<meta property="og:title" content="PixelScience Games">
+<meta property="og:title" content="PixelScience Games｜指一本で遊べる科学ミニゲーム">
 <meta property="og:description" content="遊んでわかる！科学の「なぜ？」 PixelScienceの科学ミニゲーム集。指一本で遊べる6本のゲームと、114の「なぜ？」図鑑。">
 <meta property="og:image" content="https://pixelscience-games.github.io/icon-512.png">
 <meta property="og:url" content="https://pixelscience-games.github.io/">
@@ -27,7 +27,7 @@ gtag('js', new Date());
 gtag('set', 'user_properties', {display_mode: (matchMedia('(display-mode: standalone)').matches || navigator.standalone) ? 'home_screen' : 'browser'});
 gtag('config', 'G-WG2EQK65PM');
 </script>
-<title>PixelScience Games</title>
+<title>PixelScience Games｜指一本で遊べる科学ミニゲーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
@@ -2387,7 +2387,7 @@ $('#resumeBtn').addEventListener('click', () => { audioOn(); sfx.click(); paused
 $('#retryBtn').addEventListener('click', () => startGame(GAME.id));
 $('#quitBtn').addEventListener('click', () => { sfx.click(); goHome(); });
 // share: the phone's own share sheet (LINE, X, Instagram…) with the game's link; copy as a fallback
-const SHARE_URL = 'https://pixelscience-games.github.io/';
+const SHARE_URL = 'https://pixelscience-games.github.io/?utm_source=share&utm_medium=social&utm_campaign=result';   // utm: counted as source "share" in GA4
 $('#shareBtn').addEventListener('click', async () => {
   const sv = gsave(GAME.id);
   const text = `PixelScience Games【${DIFF_LABEL[S.diff]}】${GAME.share(S.score)} なぜ？図鑑 ${sv.found.length}/${GAME.facts.length} #PixelScience`;

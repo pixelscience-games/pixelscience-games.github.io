@@ -1,4 +1,4 @@
-<title>PixelScience Games</title>
+<title>PixelScience Games｜指一本で遊べる科学ミニゲーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
@@ -2357,7 +2357,7 @@ $('#resumeBtn').addEventListener('click', () => { audioOn(); sfx.click(); paused
 $('#retryBtn').addEventListener('click', () => startGame(GAME.id));
 $('#quitBtn').addEventListener('click', () => { sfx.click(); goHome(); });
 // share: the phone's own share sheet (LINE, X, Instagram…) with the game's link; copy as a fallback
-const SHARE_URL = 'https://pixelscience-games.github.io/';
+const SHARE_URL = 'https://pixelscience-games.github.io/?utm_source=share&utm_medium=social&utm_campaign=result';   // utm: counted as source "share" in GA4
 $('#shareBtn').addEventListener('click', async () => {
   const sv = gsave(GAME.id);
   const text = `PixelScience Games【${DIFF_LABEL[S.diff]}】${GAME.share(S.score)} なぜ？図鑑 ${sv.found.length}/${GAME.facts.length} #PixelScience`;

@@ -17,7 +17,8 @@ const GA_ID = (process.env.GA_ID ?? cfg.gaId ?? '').trim();
 if (GA_ID && !/^G-[A-Z0-9]{4,}$/.test(GA_ID)) throw new Error(`gaId "${GA_ID}" does not look like a GA4 measurement ID (G-XXXXXXX)`);
 const VERSION = new Date().toISOString().replace(/\D/g, '').slice(0, 12);
 
-const TITLE = 'PixelScience Games';
+const TITLE = 'PixelScience Games';                                    // app name (manifest)
+const PAGE_TITLE = 'PixelScience Games｜指一本で遊べる科学ミニゲーム';   // page / link-preview title
 const DESC = '遊んでわかる！科学の「なぜ？」 PixelScienceの科学ミニゲーム集。指一本で遊べる6本のゲームと、114の「なぜ？」図鑑。';
 
 /* ---------- tiny PNG encoder (RGBA) ---------- */
@@ -106,7 +107,7 @@ const page = `<!doctype html>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PS Games">
 <meta property="og:type" content="website">
-<meta property="og:title" content="${TITLE}">
+<meta property="og:title" content="${PAGE_TITLE}">
 <meta property="og:description" content="${DESC}">
 <meta property="og:image" content="${ogImage}">
 ${SITE_URL !== '/' ? `<meta property="og:url" content="${SITE_URL}">\n` : ''}<meta name="twitter:card" content="summary">
