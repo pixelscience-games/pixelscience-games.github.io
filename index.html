@@ -152,6 +152,11 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .btn.primary{font-size:1.25em;background:var(--yellow);color:var(--ink);border-color:var(--white);
   box-shadow:0 .22em 0 var(--yellow-deep);padding:.45em 1.5em;animation:pulse 1.4s ease-in-out infinite}
 .row{display:flex;gap:.6em;flex-wrap:wrap;justify-content:center}
+/* YouTube channel link: a quiet second-tier button (smaller than the others, no pulse); 44px tall in px so fitScreen never shrinks the touch area */
+.btn.yt{display:inline-flex;align-items:center;justify-content:center;gap:.4em;box-sizing:border-box;min-height:44px;
+  font-size:.8em;padding:.25em .9em;text-decoration:none;border-color:rgba(169,184,238,.45);color:var(--white)}
+.btn.yt .tri{color:var(--red)}
+.btn.yt.wait{pointer-events:none;opacity:.6}
 @keyframes pulse{50%{transform:scale(1.05)}}
 
 /* ---------- HUD ---------- */
@@ -386,6 +391,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
         <button id="homeBtn" class="btn" type="button">ホーム</button>
       </div>
       <p id="shareText" class="share" hidden></p>
+      <a id="ytOver" class="btn yt" data-place="result" href="https://www.youtube.com/@The_PixelScience?sub_confirmation=1" target="_blank" rel="noopener"><span class="tri" aria-hidden="true">&#x25B6;&#xFE0E;</span>この続きは動画で</a>
     </section>
 
     <section id="dex" class="screen" hidden>
@@ -393,6 +399,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
       <div class="tabs" id="dexTabs" role="tablist"></div>
       <p class="dsub" id="dexSub"></p>
       <ol class="dexlist" id="dexList"></ol>
+      <a id="ytDex" class="btn yt" data-place="dex" href="https://www.youtube.com/@The_PixelScience?sub_confirmation=1" target="_blank" rel="noopener"><span class="tri" aria-hidden="true">&#x25B6;&#xFE0E;</span>動画でくわしく（YouTube）</a>
       <button id="dexBack" class="btn" type="button">もどる</button>
     </section>
   </div>
@@ -2218,6 +2225,8 @@ function showOver(){
   box.append(p);
   $('#shareText').hidden = true;
   $('#shareBtn').textContent = '結果を共有';
+  // a finger still tapping the game must not open YouTube: the channel link wakes up 0.8 s after the result appears
+  const yt = $('#ytOver'); yt.classList.add('wait'); clearTimeout(yt._t); yt._t = setTimeout(() => yt.classList.remove('wait'), 800);
   show('over');
 }
 
@@ -2335,6 +2344,12 @@ $('#homeBtn').addEventListener('click', () => { audioOn(); sfx.click(); goHome()
 $('#dexBtn').addEventListener('click', () => { audioOn(); sfx.click(); mode='dex'; renderDex(); show('dex');
   track('dex_open', {found_total: GAMES.reduce((s,g)=>s+gsave(g.id).found.length, 0)}); });
 $('#dexBack').addEventListener('click', () => { sfx.click(); mode='home'; refreshHome(); show('home'); });
+// YouTube channel links (result / 図鑑): the browser opens the new tab; we only count the click
+['#ytOver','#ytDex'].forEach(sel => $(sel).addEventListener('click', e => {
+  if (e.currentTarget.classList.contains('wait')){ e.preventDefault(); return; }   // just appeared: not yet
+  const place = e.currentTarget.dataset.place;
+  track('channel_click', place==='result' && GAME ? {place, game_id:GAME.id} : {place});
+}));
 $('#muteBtn').addEventListener('click', () => { SAVE.mute = !SAVE.mute; persist(); audioOn(); refreshHome(); sfx.click(); });
 function pauseGame(){
   if (!playing()) return;
