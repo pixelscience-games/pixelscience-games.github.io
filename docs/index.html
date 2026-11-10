@@ -587,24 +587,89 @@ for (const [sym, c] of Object.entries(ELEM)){
 }
 
 /* ================= audio ================= */
-let AC = null;
+// Phones only allow sound after a touch, and iPhones also need a sound started inside that touch ("unlock").
+// Effects go through sfxBus (louder than before), music through musicBus.
+let AC = null, sfxBus = null, musicBus = null, audioUnlocked = false;
 function audioOn(){
-  if (!AC){ try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
-  if (AC && AC.state==='suspended') AC.resume().catch(()=>{});
+  if (!AC){
+    try {
+      AC = new (window.AudioContext||window.webkitAudioContext)();
+      const comp = AC.createDynamicsCompressor(); comp.connect(AC.destination);   // keeps the louder mix from clipping
+      sfxBus = AC.createGain(); sfxBus.gain.value = 2.6; sfxBus.connect(comp);
+      musicBus = AC.createGain(); musicBus.gain.value = SAVE.mute ? 0 : 1; musicBus.connect(comp);
+    } catch(e){ AC = null; }
+  }
+  if (!AC) return;
+  if (AC.state !== 'running') AC.resume().catch(()=>{});
+  if (!audioUnlocked){
+    try { const s = AC.createBufferSource(); s.buffer = AC.createBuffer(1, 1, 22050); s.connect(AC.destination); s.start(0); audioUnlocked = true; } catch(e){}
+  }
+  music.kick();
 }
+['pointerdown','touchend','click','keydown'].forEach(ev => addEventListener(ev, audioOn, {capture:true, passive:true}));
 function tone(f, d, type='square', v=.05, f2){
   if (SAVE.mute || !AC) return;
   const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
   o.type=type; o.frequency.setValueAtTime(f,t); if (f2) o.frequency.exponentialRampToValueAtTime(f2,t+d);
   g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+d+.02);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+d+.02);
 }
 function noise(d, v=.18){
   if (SAVE.mute || !AC) return;
   const n=(AC.sampleRate*d)|0, b=AC.createBuffer(1,n,AC.sampleRate), a=b.getChannelData(0);
   for (let i=0;i<n;i++) a[i]=(Math.random()*2-1)*(1-i/n);
-  const s=AC.createBufferSource(), g=AC.createGain(); s.buffer=b; g.gain.value=v; s.connect(g); g.connect(AC.destination); s.start();
+  const s=AC.createBufferSource(), g=AC.createGain(); s.buffer=b; g.gain.value=v; s.connect(g); g.connect(sfxBus); s.start();
 }
+
+/* ---------- background music: small chiptune loops, scheduled ahead on the audio clock ---------- */
+const mtof = m => 440*Math.pow(2, (m-69)/12);
+const SONGS = {
+  // calm title loop (C major)
+  home: {bpm:104, len:32,
+    mel:[72,0,76,0,79,0,76,0, 74,0,77,0,81,0,77,0, 72,0,76,0,79,0,84,0, 83,0,79,0,76,0,74,0],
+    bass:{0:48, 8:53, 16:57, 24:55}, bassLen:8, hat:4},
+  // upbeat play loop (A minor → F → C → G)
+  play: {bpm:138, len:32,
+    mel:[76,0,76,79,0,76,74,0, 72,0,74,76,0,74,72,0, 72,0,76,79,0,84,83,0, 79,0,76,74,0,71,0,0],
+    bass:{0:45,2:57,4:45,6:57, 8:41,10:53,12:41,14:53, 16:48,18:60,20:48,22:60, 24:43,26:55,28:43,30:55}, bassLen:2, hat:2},
+};
+const music = {
+  song:null, step:0, next:0, timer:null,
+  play(name){
+    const s = SONGS[name] || null;
+    if (s === this.song) return;
+    this.song = s; this.step = 0; this.next = 0;
+    if (s && !this.timer) this.timer = setInterval(() => this.tick(), 60);
+  },
+  stop(){ this.song = null; },
+  kick(){ if (AC && musicBus) musicBus.gain.setTargetAtTime(SAVE.mute ? 0 : 1, AC.currentTime, .05); },
+  note(m, t, d, type, v){
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(mtof(m), t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t+.01); g.gain.setValueAtTime(v, t+d*.6); g.gain.linearRampToValueAtTime(0, t+d);
+    o.connect(g); g.connect(musicBus); o.start(t); o.stop(t+d+.02);
+  },
+  hat(t){
+    const n = (AC.sampleRate*.03)|0, b = AC.createBuffer(1, n, AC.sampleRate), a = b.getChannelData(0);
+    for (let i=0;i<n;i++) a[i] = (Math.random()*2-1)*(1-i/n);
+    const s = AC.createBufferSource(), g = AC.createGain(), f = AC.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = .05;
+    s.buffer = b; s.connect(f); f.connect(g); g.connect(musicBus); s.start(t);
+  },
+  tick(){
+    if (!AC || !this.song || AC.state !== 'running') return;
+    if (document.hidden || paused){ this.next = 0; return; }
+    const s = this.song, step = 60/s.bpm/4;
+    if (this.next < AC.currentTime) this.next = AC.currentTime + .05;
+    while (this.next < AC.currentTime + .2){
+      const i = this.step % s.len, t = this.next;
+      if (s.mel[i]) this.note(s.mel[i], t, step*.9, 'square', .035);
+      if (s.bass[i]) this.note(s.bass[i], t, step*s.bassLen*.95, 'triangle', .09);
+      if (i % s.hat === 0) this.hat(t);
+      this.next += step; this.step++;
+    }
+  },
+};
 const arp = (fs, gap=80, d=.12) => fs.forEach((f,i)=>setTimeout(()=>tone(f,d,'square',.045),i*gap));
 const sfx = {
   click: () => tone(660,.05,'square',.04),
@@ -991,11 +1056,12 @@ const END_D = 8300, SEA = 50;   // far side: seabed at END_D, then ocean, then o
 const Dig = {
   id:'dig', short:'ほりほり', title:'地球ほりほり', cat:'地球のふしぎ', sub:'熱に注意して、地球の裏側までほり進め', icon:DRILL[0],
   steer:false, scoreLabel:'ほった深さ', fmt:fmtDepth,
-  // tuned with a simulated player (clear rate for a quick-reacting player ≈ easy 100% / normal 25% / hard 8%)
+  // tuned with a simulated player that lets go 0.2 / 0.4 / 0.7 s after the heat warning — clear rates:
+  // easy 100/100/100%, normal 100/98/73%, hard 28/18/8%  (2026-11-10: normal was too hard, eased)
   tune: {
     easy:   {time:30, bonus:7, heat:28, cool:40, hotv:.5},
-    normal: {time:26, bonus:6, heat:30, cool:38, hotv:.35},
-    hard:   {time:26, bonus:6, heat:31, cool:37, hotv:.35},
+    normal: {time:27, bonus:7, heat:30, cool:38, hotv:.35},
+    hard:   {time:26, bonus:6, heat:30, cool:38, hotv:.35},
   },
   hint:'画面を押しているあいだ掘り進む<br>まわりが赤く光ったら指を離して冷やそう<br>しま模様の固い岩はすぐ熱くなる！',
   facts: D_FACTS.map(f => ({k:fmtDepth(f.km), t:f.t, b:f.b})),
@@ -1738,7 +1804,7 @@ function discover(i, extra=''){
 const screens = ['home','over','dex','pause','install','privacy'];
 function show(id){
   screens.forEach(s => { $('#'+s).hidden = s!==id; });
-  if (id==='home'){ fitHome(); setTimeout(() => goSlide(homeIdx, false), 0); }   // re-snap after the carousel becomes visible again
+  if (id==='home'){ fitHome(); setTimeout(() => goSlide(homeIdx, false), 0); music.play('home'); }   // re-snap after the carousel becomes visible again
 }
 // short phone screens (browser bars take space): shrink the whole home screen until it fits without scrolling
 function fitHome(){
@@ -1755,6 +1821,7 @@ function startGame(id){
   // ready: the game waits on its instructions until the player touches the screen
   S = {t:0, ready:true, diff:gsave(id).diff, dead:false, deadT:0, overShown:false, reason:'', parts:[], shake:0, foundRun:[], score:0, x:W/2, tx:W/2};
   layer.textContent = ''; layer.hidden = true; input.taps.length = 0;
+  music.play('home');
   GAME.start();
   mode = 'play'; paused = false; drag = null; input.hold = false; lastHud = ''; lastHearts = null;
   show(null); $('#hud').hidden = false;
@@ -1772,6 +1839,7 @@ function beginRun(){
   if (!S || !S.ready) return;
   S.ready = false; $('#hint').hidden = true; layer.hidden = false; input.taps.length = 0; sfx.click();
   track('game_start', {game_id:GAME.id, difficulty:S.diff});
+  music.play('play');
 }
 
 const hud = {main:$('#hudMain'), chip:$('#hudChip'), gauge:$('#gauge'), label:$('#gLabel'), bar:$('#gBar'), big:$('#bigTime'), plus:$('#bigPlus'), alert:$('#alert'), hearts:$('#hearts')};
@@ -1818,7 +1886,7 @@ function updateHud(){
 }
 
 function showOver(){
-  mode = 'over';
+  mode = 'over'; music.stop();
   $('#hud').hidden = true; $('#hint').hidden = true; hideBig(); layer.hidden = true;
   const sv = gsave(GAME.id), sc = S.score, isNew = sc > sv.bests[S.diff];
   if (isNew){ sv.bests[S.diff] = sc; persist(); if (S.reason!=='clear') setTimeout(sfx.rec, 250); }
