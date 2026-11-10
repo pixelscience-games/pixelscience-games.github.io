@@ -179,6 +179,12 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
   border-radius:.6em;padding:.55em .75em;text-align:left;pointer-events:none;
   transform:translateY(-16em);transition:transform .35s cubic-bezier(.2,1.4,.4,1)}
 .fact.show{transform:none}
+.fact .fimg{float:right;height:auto;margin:0 0 .2em .6em;image-rendering:pixelated}
+#toast{position:absolute;left:0;right:0;top:30%;text-align:center;pointer-events:none;font-size:1.4em;color:var(--yellow);
+  text-shadow:.08em 0 0 var(--ink),-.08em 0 0 var(--ink),0 .08em 0 var(--ink),0 -.08em 0 var(--ink),.1em .12em 0 var(--ink);opacity:0}
+#toast small{display:block;font-size:.55em;color:var(--white)}
+#toast.show{animation:toast 1.8s ease-out forwards}
+@keyframes toast{0%{opacity:0;transform:scale(.6)}12%{opacity:1;transform:scale(1.08)}20%{transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-.6em)}}
 .fact .flab{display:inline-block;font-size:.65em;background:var(--yellow);color:var(--ink);padding:.1em .5em;margin-bottom:.3em}
 .fact .fkm{font-family:var(--f-arcade);font-size:.5em;color:var(--cyan);margin-left:.6em}
 .fact b{display:block;font-weight:400;font-size:1em;color:var(--yellow)}
@@ -229,7 +235,14 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 /* ---------- 図鑑 ---------- */
 #dex{justify-content:flex-start;padding-top:1.3em}
 .dt{font-size:1.35em;font-weight:400;color:var(--yellow);text-shadow:.1em .1em 0 var(--ink)}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:.35em;width:100%;max-width:20em}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:.35em;width:100%;max-width:20em}
+.tab.secret{border-color:var(--pink)}
+.tab.secret[aria-selected="true"]{background:var(--pink);color:var(--ink)}
+.dexlist li.hid{display:flex;gap:.8em;align-items:center;border-color:var(--pink)}
+.dexlist li.hid.lock{border-color:rgba(169,184,238,.3)}
+.dexlist li.hid canvas{flex:none;width:3em;height:auto;image-rendering:pixelated}
+.dexlist li.hid div{min-width:0}
+.found .hidline{color:var(--pink)}
 .tab{flex:1;font-family:var(--f-pixel);font-size:.75em;color:var(--white);background:var(--panel);
   border:.14em solid rgba(169,184,238,.4);border-radius:.4em;padding:.4em .2em;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--yellow);color:var(--ink);border-color:var(--white)}
@@ -245,6 +258,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 @media (prefers-reduced-motion:reduce){
   .btn.primary,#hint .tap,.rec.new,.gauge.warn em,#bigTime.warn,#alert{animation:none}
   #bigPlus.show{animation:none;opacity:1}
+  #toast.show{animation:none;opacity:1}
   .fact{transition:none}
 }
 </style>
@@ -307,9 +321,11 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
       </div>
     </div>
     <div id="fact" class="fact" aria-live="polite">
+      <canvas id="factImg" class="pix fimg" hidden aria-hidden="true"></canvas>
       <span class="flab" id="factL">なぜ？発見！</span><span class="fkm" id="factK"></span>
       <b id="factT"></b><p id="factB"></p>
     </div>
+    <div id="toast" aria-live="polite"></div>
     <div id="hint" hidden></div>
     <div id="alert" hidden role="alert"></div>
     <div id="bigTime" hidden aria-live="off">0<span class="u">秒</span><span id="bigPlus"></span></div>
@@ -332,7 +348,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
       <div class="found" id="foundBox"></div>
       <button id="againBtn" class="btn primary" type="button">もう一度</button>
       <div class="row">
-        <button id="shareBtn" class="btn" type="button">結果をコピー</button>
+        <button id="shareBtn" class="btn" type="button">結果を共有</button>
         <button id="homeBtn" class="btn" type="button">ホーム</button>
       </div>
       <p id="shareText" class="share" hidden></p>
@@ -374,7 +390,10 @@ function fmtKm(k){
   if (k<100) return k.toFixed(1)+' km';
   if (k<10000) return Math.floor(k).toLocaleString('ja-JP')+' km';
   if (k<1e8) return (k/1e4).toFixed(1)+'万 km';
-  return (k/1e8).toFixed(2)+'億 km';
+  if (k<1e12) return (k/1e8).toFixed(k<1e10 ? 2 : 0)+'億 km';
+  const ly = k/9.46e12;                                   // light-years from here on
+  if (ly<1e4) return ly.toFixed(ly<100 ? 1 : 0)+' 光年';
+  return (ly/1e4).toFixed(1)+'万 光年';
 }
 function fmtDepth(k){
   return k<100 ? k.toFixed(1)+' km' : Math.floor(k).toLocaleString('ja-JP')+' km';
@@ -405,7 +424,7 @@ const DIFF_LABEL = {easy:'イージー', normal:'ノーマル', hard:'ハード'
 const PAL = {W:'#f4f8ff',R:'#ff3b5c',C:'#3ee6ff',B:'#2f7bff',G:'#8a9bc4',Y:'#ffd23a',K:'#16204f',O:'#ff9a3a',D:'#1d3f9a',
   P:'#ff8fb8',E:'#e8dcc0',T:'#6b4a2c',L:'#fff6b0',M:'#ff5a1f'};
 function spr(rows){
-  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
+  const c = document.createElement('canvas'); c.width = Math.max(...rows.map(r => r.length)); c.height = rows.length;
   const x = c.getContext('2d');
   rows.forEach((r,j) => { for (let i=0;i<r.length;i++){ const ch=r[i]; if (ch!=='.'){ x.fillStyle=PAL[ch]; x.fillRect(i,j,1,1);} } });
   return c;
@@ -469,6 +488,13 @@ function rock(r, seed){
   });
 }
 const ROCKS = [5,6,7,8].map((r,i) => ({img:rock(r,i*1.7+.4), r}));
+// icy versions (comet nuclei far from the Sun)
+const ICY_ROCKS = ROCKS.map(R => {
+  const c = document.createElement('canvas'); c.width = R.img.width; c.height = R.img.height;
+  const x = c.getContext('2d'); x.drawImage(R.img, 0, 0);
+  x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(160,220,255,.55)'; x.fillRect(0,0,c.width,c.height);
+  return c;
+});
 function planet(r, base, light, dark, craterCol, seed){
   const cr = craterCol ? Array.from({length:7},(_,k)=>({x:Math.cos(seed+k*2.1)*r*(.2+.09*k), y:Math.sin(seed*1.3+k*1.7)*r*(.2+.09*k), s:r*(.06+.025*(k%3))})) : [];
   return disc(r, (dx,dy,d) => {
@@ -649,6 +675,8 @@ const sfx = {
   make:  () => arp([659,988],70),
   wrong: () => tone(160,.28,'square',.06,70),
   heal:  () => arp([784,1047,1319],60,.1),
+  secret:() => arp([659,880,1109,1319,1760,2217],70,.14),
+  level: () => arp([523,784,1047,1568],60,.12),
   launch:() => tone(300,.16,'square',.04,900),
   cool:  () => { noise(.3,.07); tone(1200,.2,'sine',.03,400); },
   crash: () => { noise(.55,.22); tone(220,.5,'sawtooth',.05,40); },
@@ -681,7 +709,9 @@ function burst(x,y,n,cols,sp,life){
    GAME 1 — ロケット・ライズ (宇宙)
    ===================================================================== */
 const R_STOPS = [[0,0],[700,10],[900,12],[1500,25],[2200,50],[2700,80],[3200,100],[4000,400],
-  [4900,2000],[6100,20200],[7300,35786],[9200,384400],[12500,55000000]];
+  [4900,2000],[6100,20200],[7300,35786],[9200,384400],[12500,55000000],
+  // beyond Mars (added 2026-11-10 so long runs keep revealing new places)
+  [15200,5.9e8],[17800,1.2e9],[20400,1.8e10],[22600,2.5e10],[25400,4.0e13],[28400,2.4e19]];
 const R_FACTS = [
   {km:10, t:'旅客機の高さ', b:'旅客機は高度およそ10kmを飛ぶ。外の気温は約-50℃。'},
   {km:12, t:'成層圏に突入', b:'雲や雨などの天気は、ほとんどが下の「対流圏」で起きている。'},
@@ -695,7 +725,35 @@ const R_FACTS = [
   {km:35786, t:'静止軌道', b:'ここの衛星は地球の自転と同じ速さで回るので、地上からは止まって見える。'},
   {km:384400, t:'月に到着', b:'地球から月まで平均約38万km。光の速さでも約1.3秒かかる。'},
   {km:55000000, t:'火星', b:'火星は地球に最も近づくときで約5500万km。光でも3分以上かかる。'},
+  {km:5.9e8, t:'木星', b:'木星は地球に最も近づくときで約5.9億km。太陽系でいちばん大きな惑星。'},
+  {km:1.2e9, t:'土星', b:'土星は地球に最も近いときでも約12億km。大きな輪は氷のつぶでできている。'},
+  {km:1.8e10, t:'ヘリオポーズ', b:'太陽から吹き出す風（太陽風）がとどく範囲の果て。ここから先は、恒星と恒星のあいだの宇宙。'},
+  {km:2.5e10, t:'ボイジャー1号', b:'1977年に打ち上げられた探査機。人類が作ったもので、いちばん遠くを飛んでいる。'},
+  {km:4.0e13, t:'プロキシマ・ケンタウリ', b:'太陽のつぎに地球に近い恒星。光の速さでも約4.2年かかる。'},
+  {km:2.4e19, t:'アンドロメダ銀河', b:'となりの大きな銀河。約250万光年はなれていて、肉眼で見える最も遠い天体のひとつ。'},
 ];
+// far-away scenery for the deep-space part of the flight
+const BIG_JUPITER = disc(38, (dx,dy,d) => {
+  if (d>38) return null;
+  if (Math.hypot(dx-12,dy-9)<6) return '#c0503a';
+  const band = Math.floor((dy+38+Math.sin(dx*.15)*1.5)/6)%3;
+  const c = ['#d9b38c','#b5835a','#f0d9b5'][band];
+  return (-dx*.8-dy*.5)/38 < -.5 ? '#7a5638' : c;
+});
+const BIG_SATURN = planet(26,'#e8cf8f','#f6e6b8','#b0904e',null,1);
+const PROXIMA = disc(14, (dx,dy,d) => d>14 ? null : d<6 ? '#fff0e0' : d<10 ? '#ff9a6a' : '#ff5a3a');
+const ANDROMEDA = (() => {
+  const w=70, h=34, c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+  for (let j=0;j<h;j++) for (let i=0;i<w;i++){
+    const dx=(i-w/2)/(w/2), dy=(j-h/2)/(h/2), r=Math.hypot(dx,dy*1.0), a=Math.atan2(dy,dx);
+    const arm = .5+.5*Math.sin(a*2 - r*7);
+    const v = Math.max(0, 1-r) * (r<.18 ? 1.6 : .55+.6*arm);
+    if (v<.08) continue;
+    x.fillStyle = `rgba(${200+Math.round(55*Math.min(1,v))},${190+Math.round(50*Math.min(1,v))},255,${Math.min(1,v).toFixed(2)})`; x.fillRect(i,j,1,1);
+  }
+  return c;
+})();
+const VOYAGER = spr(['....WWW....','...W...W...','....WWW....','.....G.....','GGGGGGGGGGG','.....G.....','....GYG....','.....G.....']);
 const SKY = [[0,'#4fb6ff'],[1.05,'#2a6fd6'],[1.75,'#13307a'],[2.05,'#0b1440'],[3,'#070b2b']].map(([t,c])=>[t,hex(c)]);
 function skyColor(km){
   const t = Math.log10(km+1);
@@ -705,7 +763,8 @@ function skyColor(km){
   }
   return 'rgb(7,11,43)';
 }
-const rZone = k => k<12?'対流圏':k<50?'成層圏':k<85?'中間圏':k<600?'熱圏':k<384400?'宇宙空間':k<55000000?'月の向こう':'深宇宙';
+const rZone = k => k<12?'対流圏':k<50?'成層圏':k<85?'中間圏':k<600?'熱圏':k<384400?'宇宙空間':k<55000000?'月の向こう':
+  k<5.9e8?'小惑星帯':k<1.8e10?'外側の惑星':k<4.0e13?'星間空間':k<2.4e19?'天の川銀河':'銀河の外';
 const RY = () => Math.round(H*.74);
 
 const Rocket = {
@@ -766,6 +825,21 @@ const Rocket = {
       if (S.atomT<=0){ S.atoms.push({x:rnd(10,W-10), y:-8, ph:Math.random()*6}); S.atomT = rnd(.85,1.45); }
       if (S.km<10){ S.cloudT -= dt; if (S.cloudT<=0){ S.clouds.push({x:rnd(-10,W), y:-12, w:Math.round(rnd(12,28)), sp:rnd(.4,.7)}); S.cloudT=rnd(.6,1.4);} }
       while (S.fi<R_FACTS.length && S.km>=R_FACTS[S.fi].km){ discover(S.fi); S.fi++; }
+      // new area name past the Moon
+      const z = rZone(S.km);
+      if (S.zone !== z){ if (S.zone && S.km>384400) toast(z, 'エリア到達'); S.zone = z; }
+      // hidden characters: UFO (above 100 km) and the space cat (past geostationary orbit)
+      if (!S.sec){
+        const dir = Math.random()<.5 ? -1 : 1;
+        if (S.km>=100 && hiddenRoll('ufo', .05, dt)) S.sec = {id:'ufo', x: dir>0 ? -16 : W+16, y:rnd(24, H*.45), vx:dir*34, fall:.2};
+        else if (S.km>=35786 && hiddenRoll('spacecat', .05, dt)) S.sec = {id:'spacecat', x:rnd(24, W-24), y:-16, vx:rnd(-6,6), fall:.45};
+      }
+      if (S.sec){
+        const s = S.sec; s.x += s.vx*dt; s.y += S.speed*s.fall*dt + Math.sin(S.t*3)*6*dt;
+        if (Math.abs(s.x-S.x) < 11 && Math.abs(s.y-ry) < 11){
+          findHidden(s.id); burst(s.x, s.y, 24, ['#ff8fb8','#ffd23a','#f4f8ff'], 60, .7); S.sec = null;
+        } else if (s.y > H+20 || s.x < -24 || s.x > W+24) S.sec = null;
+      }
       for (let i=0;i<2;i++) S.parts.push({x:S.x+rnd(-2,2), y:ry+8, vx:rnd(-8,8), vy:rnd(40,70)+S.speed*.4, life:rnd(.15,.35), max:.35,
         c:pick(['#ffd23a','#ff9a3a','#ff3b5c']), s:Math.random()<.4?2:1});
     } else {
@@ -805,6 +879,18 @@ const Rocket = {
     const body = (img, at, xf) => { const y = (S.dist-at)*.35 + H*.28;
       if (y > -img.height && y < H+img.height) ctx.drawImage(img, Math.round(W*xf-img.width/2), Math.round(y-img.height/2)); };
     body(MOON, 9200, .7); body(MARS, 12500, .3);
+    body(BIG_JUPITER, 15200, .72); body(BIG_SATURN, 17800, .28);
+    if (Math.abs(S.dist-17800) < 700){   // Saturn's rings, drawn as a flat ellipse over the ball
+      const y = (S.dist-17800)*.35 + H*.28, cx = W*.28;
+      ctx.strokeStyle = 'rgba(217,194,154,.9)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(cx, y, 46, 9, -.15, 0, Math.PI*2); ctx.stroke();
+    }
+    if (Math.abs(S.dist-20400) < 500){    // heliopause: a faint bubble edge
+      const y = (S.dist-20400)*.35 + H*.28;
+      ctx.strokeStyle = 'rgba(62,230,255,.35)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(W/2, y+120, 160, 120, 0, Math.PI*1.1, Math.PI*1.9); ctx.stroke();
+    }
+    body(VOYAGER, 22600, .65); body(PROXIMA, 25400, .35); body(ANDROMEDA, 28400, .6);
     ctx.fillStyle = 'rgba(244,248,255,.85)';
     for (const c of S.clouds){ const x=Math.round(c.x), y=Math.round(c.y), w=c.w;
       ctx.fillRect(x, y+3, w, 4); ctx.fillRect(x+3, y, w-8, 4); ctx.fillRect(x+(w*.4|0), y-2, w*.35|0, 3); }
@@ -821,6 +907,7 @@ const Rocket = {
     }
     for (const a of S.atoms) ctx.drawImage(ATOM, Math.round(a.x)-4, Math.round(a.y)-3+Math.round(Math.sin(t*5+a.ph)));
     for (const o of S.obs) this.drawObs(o, t);
+    if (S.sec) drawSecret(S.sec.id, S.sec.x, S.sec.y, t);
     if (!S.dead){
       const X = Math.round(S.x)-5, Y = RY()-7;
       ctx.drawImage(ROCKET, X, Y);
@@ -862,6 +949,10 @@ const MOLS = [
   {f:['O','O','O'], fm:'O₃', t:'オゾン', b:'酸素原子3つ。上空のオゾン層が太陽の紫外線を吸収している。'},
   {f:['C','H','H','H','H'], fm:'CH₄', t:'メタン', b:'都市ガスの主成分。牛のげっぷにも含まれている。'},
   {f:['N','H','H','H'], fm:'NH₃', t:'アンモニア', b:'鼻をつくにおいの気体。肥料の原料として大量に作られている。'},
+  {f:['C','O'], fm:'CO', t:'一酸化炭素', b:'炭が不完全燃焼するとできる、色もにおいもない危険な気体。'},
+  {f:['H','H','O','O'], fm:'H₂O₂', t:'過酸化水素', b:'うすめたものは、きず口の消毒に使う「オキシドール」。'},
+  {f:['N','N','O'], fm:'N₂O', t:'亜酸化窒素', b:'「笑気ガス」とも呼ばれ、歯医者さんで不安をやわらげるのに使われることがある。'},
+  {f:['C','H','H','H','O','H'], fm:'CH₃OH', t:'メタノール', b:'燃料などに使われるアルコール。飲むと命にかかわる危険な物質。'},
 ];
 const ELEMS = Object.keys(ELEM);
 const HEART_ITEM = spr(['.RRR...RRR.','RRWRR.RRRRR','RWRRRRRRRRR','RRRRRRRRRRR','RRRRRRRRRRR',
@@ -914,6 +1005,11 @@ const Element = {
       let sym = Math.random() < Math.max(.28, .42 - S.made*.015) ? pick(left) : pick(ELEMS.filter(e => !left.includes(e)));
       // now and then a heart falls while a life is missing
       if (S.hearts<3 && Math.random()<P.heart && !S.items.some(it => it.sym==='heart')) sym = 'heart';
+      // hidden robots fall now and then once enough molecules are made
+      else if (!S.items.some(it => it.sym[0]==='@')){
+        if (S.made>=8 && hiddenRoll('pinkbot', .06, 1)) sym = '@pinkbot';
+        else if (S.made>=4 && hiddenRoll('goldbot', .06, 1)) sym = '@goldbot';
+      }
       const drift = S.made>=P.driftFrom ? rnd(-1,1)*Math.min(30, 8+S.made*3) : 0;
       S.items.push({sym, x:rnd(9,W-9), y:-8, vx:drift, vy:S.fall*rnd(.8,1.25), ph:Math.random()*6});
       S.spawnT = Math.max(.3, .7 - S.made*.035) * P.spawn * rnd(.75,1.25);
@@ -924,6 +1020,10 @@ const Element = {
       if (it.sym==='heart'){
         S.hearts = Math.min(3, S.hearts+1); sfx.heal();
         burst(it.x, by, 14, ['#ff3b5c','#ff8fb8','#f4f8ff'], 50, .5);
+        return false;
+      }
+      if (it.sym[0]==='@'){
+        findHidden(it.sym.slice(1)); burst(it.x, by, 22, ['#ffd23a','#ff8fb8','#f4f8ff'], 60, .7);
         return false;
       }
       const k =S.mol.f.findIndex((s,j)=>s===it.sym && !S.filled[j]);
@@ -939,6 +1039,7 @@ const Element = {
     });
     if (!S.dead && S.filled.every(Boolean)){
       S.made++; S.score = S.made; S.beat = 1.6;
+      if (S.made % 5 === 0) later(900, () => toast(`レベル${S.made/5+1}`, S.made>=MOLS.length ? 'スピードアップ！ どこまでいける？' : 'スピードアップ！'));
       for (const it of S.items) burst(it.x, it.y, 4, ['#3ee6ff','#f4f8ff'], 25, .3);
       S.items = [];
       burst(S.x, by, 30, ['#ffd23a','#3ee6ff','#ff5fa2','#f4f8ff'], 70, .8);
@@ -957,7 +1058,8 @@ const Element = {
       if (it.sym==='heart'){
         if (((t*6)|0)%2){ ctx.fillStyle = 'rgba(255,143,184,.35)'; ctx.fillRect(Math.round(it.x)-7, Math.round(it.y)-6, 15, 13); }
         ctx.drawImage(HEART_ITEM, Math.round(it.x)-5, Math.round(it.y)-5);
-      } else ctx.drawImage(TILE[it.sym], Math.round(it.x)-7, Math.round(it.y)-7);
+      } else if (it.sym[0]==='@') drawSecret(it.sym.slice(1), it.x, it.y, t);
+      else ctx.drawImage(TILE[it.sym], Math.round(it.x)-7, Math.round(it.y)-7);
     }
 
     // beaker
@@ -1040,7 +1142,7 @@ const Dig = {
   share: s => s>=12742 ? '「地球ほりほり」で地球の裏側まで掘りぬいた！' : `「地球ほりほり」で深さ ${fmtDepth(s)} まで掘った！`,
 
   start(){
-    Object.assign(S, {dist:0, km:0, heat:0, time:this.tune[S.diff].time, started:false, clearing:false, splashed:false, warnT:0, v:0, seed:Math.random()*100, waters:[], nextW:300, fi:0, decos:[], nextD:6});
+    Object.assign(S, {dist:0, km:0, heat:0, time:this.tune[S.diff].time, started:false, clearing:false, splashed:false, warnT:0, v:0, seed:Math.random()*100, waters:[], nextW:300, fi:0, decos:[], nextD:6, secs:[], zone:'地殻'});
   },
   // rock hardness 0.5 (soft) … 2.0 (very hard); hard bands heat the drill much faster
   hard(d){
@@ -1063,6 +1165,19 @@ const Dig = {
     S.decos = S.decos.filter(o => o.d > S.dist - dy - 20);
     if (S.dead) return;
     if (S.clearing){ this.breakThrough(dt, dy); return; }
+    // entering a new layer gets a big title
+    const z = dZone(S.km) + (S.km>6371 ? '（裏側）' : '');
+    if (z !== S.zone){ S.zone = z; toast(`${z}に突入！`); }
+    // hidden characters wait right on the drill's path: the mole in the crust, the golem in the mantle
+    const busy = S.secs.some(s => s.d > S.dist-10);
+    if (!busy){
+      const placed = id => !S.secs.some(s => s.id===id);
+      if (S.km>=4 && S.km<30 && placed('mole') && hiddenRoll('mole', .15, dt)) S.secs.push({id:'mole', d:S.dist+H*.8});
+      else if (S.km>=660 && S.km<5000 && placed('golem') && hiddenRoll('golem', .12, dt)) S.secs.push({id:'golem', d:S.dist+H*.8});
+    }
+    for (const s of S.secs){
+      if (!s.got && S.dist >= s.d-6){ s.got = true; findHidden(s.id); burst(W/2, dy+4, 24, ['#ff8fb8','#ffd23a','#f4f8ff'], 60, .7); }
+    }
     const vmax = 95 + S.dist*.03;
     if (input.hold){
       // an overheated drill bites slowly: pushing through the warning costs time
@@ -1213,6 +1328,11 @@ const Dig = {
       ctx.fillStyle = S.heat>75 ? '#ff3b1a' : '#ff9a3a';
       ctx.fillRect(W/2-6, dy-len, 1, len); ctx.fillRect(W/2+6, dy-len, 1, len);
     }
+    for (const s of S.secs){
+      if (s.got) continue;
+      const y = dy + (s.d - S.dist);
+      if (y > -20 && y < H+20) drawSecret(s.id, W/2, y, t);
+    }
     // water pockets
     for (const w of S.waters){
       if (w.used) continue;
@@ -1299,6 +1419,8 @@ const H_FACTS = [
   {t:'天王星', b:'自転軸が約98度かたむいていて、横だおしのまま太陽のまわりを回る。'},
   {t:'海王星', b:'太陽系でいちばん強い風が吹く。風速は秒速約600mにもなる。'},
   {t:'冥王星', b:'2006年に惑星から「準惑星」に分類が変わった。ハートの形のもようがある。'},
+  {t:'カイパーベルト', b:'海王星の外側に、氷でできた小さな天体がたくさん集まっている場所。冥王星もその仲間。', at:10},
+  {t:'オールトの雲', b:'太陽系をとても遠くから球のように包んでいると考えられている、すい星のふるさと。まだ直接は見つかっていない。', at:15},
 ];
 
 const Hop = {
@@ -1311,7 +1433,7 @@ const Hop = {
     normal: {w:1.7, v:115, cap:8,  guide:30, drift:8,  driftFrom:5},
     hard:   {w:2.3, v:130, cap:4,  guide:0,  drift:12, driftFrom:0},
   },
-  facts: H_FACTS.map((f,i) => ({k: i<8 ? `太陽から${i+1}番目` : '準惑星', t:f.t, b:f.b})),
+  facts: H_FACTS.map((f,i) => ({k: f.at ? `星を${f.at}こ` : i<8 ? `太陽から${i+1}番目` : '準惑星', t:f.t, b:f.b})),
   lockHint: i => `${H_FACTS[i].t}にたどり着くと見つかる`,
   reasons: {lost:['LOST!','宇宙のかなたへ飛んでいってしまった']},
   share: s => `「惑星ホッパー」で ${Math.floor(s)} こ目の星まで進んだ！`,
@@ -1326,7 +1448,10 @@ const Hop = {
   addBody(){
     const k = S.bodies.length, prev = S.bodies[k-1];
     let def = HOP_BODIES[k];
-    if (!def){ const R = pick(ROCKS); def = {name:'小惑星', img:R.img, r:R.r}; }
+    if (!def){   // past Pluto: Kuiper-belt bodies, then icy comet nuclei from the Oort cloud
+      const R = pick(ROCKS), icy = k >= 15;
+      def = {name: k>=15 ? 'すい星の核' : 'カイパーベルト天体', img: icy ? ICY_ROCKS[ROCKS.indexOf(R)] : R.img, r:R.r};
+    }
     const y = prev ? prev.y - rnd(95,130) : 0;
     const x = prev ? clamp(prev.x + (Math.random()<.5?-1:1)*rnd(20,60), 26, W-26) : W/2;
     S.bodies.push({k, name:def.name, img:def.img, r:def.r, R:Math.max(13, def.r+9), bx:x, x, y, ph:Math.random()*6});
@@ -1357,7 +1482,9 @@ const Hop = {
           S.dir = (dx*S.vy - dy*S.vx) >= 0 ? 1 : -1;
           S.a = Math.atan2(dy,dx); S.cur = b; S.state = 'orbit'; S.score = b.k;
           sfx.make(); burst(b.x, b.y-S.camY, 18, ['#3ee6ff','#ffd23a','#f4f8ff'], 50, .6);
-          if (b.k>=1 && b.k<=H_FACTS.length) discover(b.k-1);
+          const fi = b.k<=9 ? b.k-1 : H_FACTS.findIndex(f => f.at===b.k);
+          if (b.k>=1 && fi>=0) discover(fi);
+          else if (b.k>10 && b.k%5===0) toast(`★${b.k}`, 'スピードアップ！');
           while (S.bodies.length < b.k+4) this.addBody();
           break;
         }
@@ -1370,6 +1497,20 @@ const Hop = {
       }
     } else if (S.state==='respawn'){
       S.respawnT -= dt; if (S.respawnT<=0) S.state = 'orbit';
+    }
+    // hidden characters cross between the current star and the next one; fly close to meet them
+    if (!S.sec){
+      const next = S.bodies.find(b => b.k === S.cur.k+1);
+      const dir = Math.random()<.5 ? -1 : 1;
+      const mk = id => ({id, x: dir>0 ? -20 : W+20, y: next ? (S.cur.y+next.y)/2 + rnd(-15,15) : S.cur.y-60, vx: dir*rnd(14,22)});
+      if (S.score>=10 && hiddenRoll('comet', .04, dt)) S.sec = mk('comet');
+      else if (S.score>=5 && hiddenRoll('whale', .04, dt)) S.sec = mk('whale');
+    }
+    if (S.sec){
+      const s = S.sec; s.x += s.vx*dt;
+      if (S.state==='fly' && Math.hypot(S.px-s.x, S.py-s.y) < 16){
+        findHidden(s.id); burst(s.x, s.y-S.camY, 24, ['#ff8fb8','#ffd23a','#f4f8ff'], 60, .7); S.sec = null;
+      } else if (s.x < -30 || s.x > W+30) S.sec = null;
     }
   },
   render(t){
@@ -1403,6 +1544,11 @@ const Hop = {
       const m = Math.hypot(hx,hy); ctx.fillStyle = 'rgba(255,210,58,.85)';
       for (let s=7; s<P.guide; s+=5) ctx.fillRect(Math.round(S.px+hx/m*s), Math.round(sy+hy/m*s), 1, 1);
     }
+    if (S.sec){
+      const img = H_IMG[S.sec.id];
+      ctx.save(); ctx.translate(Math.round(S.sec.x), Math.round(S.sec.y - S.camY)); if (S.sec.vx<0) ctx.scale(-1,1);
+      ctx.translate(-Math.round(S.sec.x), -Math.round(S.sec.y - S.camY)); drawSecret(S.sec.id, S.sec.x, S.sec.y - S.camY, t); ctx.restore();
+    }
     ctx.save(); ctx.translate(Math.round(S.px), Math.round(sy)); ctx.rotate(Math.atan2(hy,hx)+Math.PI/2);
     ctx.drawImage(MINI, -2, -3); ctx.restore();
   },
@@ -1423,6 +1569,9 @@ const T_ITEMS = [
   {n:'鉄がとける温度', t:1538, min:0, max:2000, b:'鉄は約1538℃でとける。製鉄所の高炉では1500℃以上の熱で鉄を取り出す。'},
   {n:'太陽の表面', t:5500, min:0, max:8000, b:'太陽の表面は約5500℃。中心はなんと約1500万℃。'},
   {n:'かみなり', t:30000, min:0, max:40000, b:'雷が通る道の空気は約3万℃。太陽の表面の約5倍の熱さ。'},
+  {n:'サウナの空気', t:90, min:0, max:150, b:'サウナは約80〜100℃。空気は熱を伝えにくいので、短い時間なら入っていられる。'},
+  {n:'ドライアイス', t:-79, min:-150, max:0, b:'ドライアイスは約-79℃。とけて液体にならず、そのまま気体（二酸化炭素）になる。'},
+  {n:'液体窒素がふっとうする温度', t:-196, min:-273, max:-100, b:'空気中の窒素を冷やして液体にしたもの。約-196℃でふっとうして気体にもどる。'},
 ];
 function fmtT(v, fine){
   if (fine) return v.toFixed(1)+'℃';
@@ -1482,7 +1631,10 @@ const Thermo = {
       S.judgeT -= dt;
       if (S.judgeT<=0){
         if (S.hearts<=0) die('miss', TCX, tBot(), null, true);
-        else { S.round++; this.next(); }
+        else {
+          S.round++; this.next();
+          if (S.round % 5 === 0) toast(`レベル${S.round/5+1}`, S.round>=T_ITEMS.length ? '目標ゾーンがさらにせまく！' : '目標ゾーンがせまくなる');
+        }
       }
     }
   },
@@ -1494,7 +1646,13 @@ const Thermo = {
       S.score++; sfx.make();
       burst(TCX, this.ty(S.T), 20, ['#ffd23a','#5ee05e','#f4f8ff'], 55, .6);
       r.className = 'tres ok';
-      r.textContent = Math.abs(err) <= S.band/3 ? 'ぴったり！' : 'セーフ！';
+      const perfect = Math.abs(err) <= S.band/3;
+      r.textContent = perfect ? 'ぴったり！' : 'セーフ！';
+      // a perfect stop can call out a hidden character
+      if (perfect){
+        if (S.it.t <= 50 && hiddenRoll('snowman', .5, 1)) later(700, () => findHidden('snowman'));
+        else if (S.it.t >= 1000 && hiddenRoll('phoenix', .5, 1)) later(700, () => findHidden('phoenix'));
+      }
       if (!S.foundRun.includes(S.ii)) discover(S.ii);
     } else {
       S.hearts--; S.shake = 3; sfx.wrong();
@@ -1634,7 +1792,7 @@ const Rank = {
   share: s => `「くらべてランキング」で ${Math.floor(s)} 問正解！`,
 
   start(){
-    Object.assign(S, {hearts:3, phase:'ask', qt:0, qmax:1, lastKey:'', showT:0});
+    Object.assign(S, {hearts:3, phase:'ask', qt:0, qmax:1, lastKey:'', showT:0, streak:0});
     layer.innerHTML = '<div class="rq"></div><div class="rcards">'
       + [0,1].map(s => `<div class="rcard"><canvas class="pix"></canvas><b></b><span class="v"></span></div>`).join('<div class="vs">VS</div>')
       + '</div><div class="rres"></div>';
@@ -1647,6 +1805,11 @@ const Rank = {
       const c = pick(Object.keys(RANK_CATS));
       const pool = RANK_ITEMS.map((_,i)=>i).filter(i => RANK_ITEMS[i].c===c);
       a = pick(pool); do { b = pick(pool); } while (b===a);
+      // after 10 correct answers, most questions compare closer values (harder to tell apart)
+      if (S.score>=10 && Math.random()<.65){
+        const close = pool.filter(i => i!==a && Math.max(RANK_ITEMS[i].v, RANK_ITEMS[a].v)/Math.min(RANK_ITEMS[i].v, RANK_ITEMS[a].v) < 4);
+        if (close.length) b = pick(close);
+      }
       key = [a,b].sort((x,y)=>x-y).join();
     } while (key===S.lastKey);
     S.lastKey = key; S.pair = [a,b]; S.phase = 'ask';
@@ -1685,9 +1848,14 @@ const Rank = {
       S.score++; sfx.make(); r.className = 'rres ok'; r.textContent = 'せいかい！';
       burst(side===0 ? W*.27 : W*.73, H*.48, 18, ['#5ee05e','#ffd23a','#f4f8ff'], 55, .6);
       const wi = S.pair[win], li = S.pair[1-win];
-      if (!S.foundRun.includes(wi)) discover(wi); else if (!S.foundRun.includes(li)) discover(li);
+      S.streak++;
+      if (S.streak>=10 && !S.hiddenRun.includes('kingbot')) later(600, () => findHidden('kingbot'));
+      else if (S.streak>=5 && hiddenRoll('owl', .35, 1)) later(600, () => findHidden('owl'));
+      else if (!S.foundRun.includes(wi)) discover(wi); else if (!S.foundRun.includes(li)) discover(li);
+      if (S.streak===5 || S.streak===10 || (S.streak>10 && S.streak%10===0)) toast(`${S.streak}問れんぞく正解！`);
+      if (S.score===10) later(1200, () => toast('レベルアップ', 'ここから、むずかしい問題がふえる'));
     } else {
-      S.hearts--; S.shake = 3; sfx.wrong(); r.className = 'rres ng';
+      S.hearts--; S.shake = 3; sfx.wrong(); r.className = 'rres ng'; S.streak = 0;
       r.textContent = side<0 ? '時間切れ' : 'ざんねん…';
     }
   },
@@ -1705,10 +1873,78 @@ const Rank = {
   },
   hud(){
     const frac = S.phase==='ask' ? S.qt/S.qmax : 0;
-    return {main:`${S.score} もん`, chip:`${RANK_CATS[RANK_ITEMS[S.pair[0]].c].label}くらべ`, label:'時間', pct:frac*100, kind:'', warn:S.phase==='ask' && frac<.3,
+    return {main:`${S.score} もん`, chip:`${RANK_CATS[RANK_ITEMS[S.pair[0]].c].label}くらべ${S.streak>=2 ? `・${S.streak}れんぞく` : ''}`, label:'時間', pct:frac*100, kind:'', warn:S.phase==='ask' && frac<.3,
       hearts:S.hearts, maxHearts:3};
   },
 };
+
+/* =====================================================================
+   隠れキャラ — rare characters that show up in every game once you get far enough
+   ===================================================================== */
+function withCrown(img){
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height + 4;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 4);
+  x.drawImage(outlined(spr(['Y.Y.Y','YYYYY','YRYRY'])), Math.round(img.width/2-3.5), -1);
+  return c;
+}
+const H_IMG = {
+  ufo: outlined(spr(['.....CCCCC.....','....CCWWCCC....','...CCCCCCCCC...','.GGGGGGGGGGGGG.','GYGGGYGGGYGGGYG','.GGGGGGGGGGGGG.','...YY.....YY...'])),
+  spacecat: outlined(spr(['...CCCCCC...','..C......C..','.C.O....O.C.','.C.OO..OO.C.','.C.OOOOOO.C.','.C.OKOOKO.C.','.C.OOPPOO.C.','..COOOOOOC..','...CCCCCC...','..WWWWWWWW..','..WW.WW.WW..','..W..W..W...'])),
+  goldbot: robotSprite('#ffd23a', false, true),
+  pinkbot: robotSprite('#ff6fb5', false, true),
+  mole: outlined(spr(['...TTTTTT...','..TTTTTTTT..','.TTKTTTTKTT.','.TTTTPPTTTT.','TTTTPPPPTTTT','.PPTTTTTTPP.','PPP.TTTT.PPP'])),
+  golem: outlined(spr(['...MMMMMM...','..MOOOOOOM..','..MOYOOYOM..','..MOOOOOOM..','.MMMOOOOMMM.','MOOMMMMMMOOM','MOOMOYYOMOOM','MM.MOOOOM.MM','...MOOOOM...','...MM..MM...','..MMM..MMM..'])),
+  whale: outlined(spr(['..........B.B...','...BBBBBB..B....','..BBBBBBBBBB....','.BBKBBBBBBBBB..B','.BBBBBBBBBBBBBBB','.WWWWWWWBBBBBB.B','..WWWWWWWBBB....','....WWWW........'])),
+  comet: outlined(spr(['..........YWW.','.....CCCCYWWWW','CCCCCCCCYYWWWW','.....CCCCYWWWW','..........YWW.'])),
+  snowman: outlined(spr(['...KKKK...','...KKKK...','..KKKKKK..','...WWWW...','..WKWWKW..','..WWOWWW..','...WWWW...','..RRRRRR..','.WWWWWWWW.','.WWWKWWWW.','.WWWKWWWW.','..WWWWWW..'])),
+  phoenix: outlined(spr(['.....RR.......','....RYYR......','....RKYR....OO','...RRYYRR..OYO','.RROOYYOORRYO.','ROOYYYYYYYOO..','.RROOYYOORR...','...RO..OR.....','..RO....OR....','..O......O....'])),
+  owl: outlined(spr(['..T......T..','..TT....TT..','..TTTTTTTT..','.TWWWTTWWWT.','.TWYKTTKYWT.','.TWWWTTWWWT.','.TTTTOOTTTT.','.TTWWWWWWTT.','.TWTWTWTWTT.','.TTWWWWWWTT.','..TTTTTTTT..','...Y....Y...'])),
+  kingbot: withCrown(robotSprite('#c070ff', false, true)),
+};
+const HIDDEN = [
+  {id:'ufo',      game:'rocket',  name:'UFO',            hint:'ロケット・ライズ：高度100kmより上で、まれに横切っていく', desc:'正体不明の円盤。だれが乗っているのかは、まだだれも知らない。'},
+  {id:'spacecat', game:'rocket',  name:'宇宙ネコ',        hint:'ロケット・ライズ：静止軌道（約3.6万km）より先で、まれにふわふわ浮いている', desc:'宇宙服を着たネコ。無重力でもちゃんと着地できる自信がある。'},
+  {id:'goldbot',  game:'element', name:'ゴールドロボ',    hint:'元素キャッチ：分子を4こ作ったあと、まれに落ちてくる', desc:'金（Au）でピカピカのロボット。金はさびにくいので、いつまでもピカピカ。'},
+  {id:'pinkbot',  game:'element', name:'ピンクロボ',      hint:'元素キャッチ：分子を8こ作ったあと、まれに落ちてくる', desc:'博士の助手のひとり。フラスコ洗いが得意。'},
+  {id:'mole',     game:'dig',     name:'モグラ先生',      hint:'地球ほりほり：地殻（深さ4km〜35km）で、まれに出会う', desc:'地下のことなら何でも知っている。でも本物のモグラは地下数十cmあたりでくらしている。'},
+  {id:'golem',    game:'dig',     name:'マグマゴーレム',  hint:'地球ほりほり：マントル（深さ660kmより下）で、まれに出会う', desc:'マントルの熱で動く、ふしぎな岩の巨人。'},
+  {id:'whale',    game:'hop',     name:'宇宙クジラ',      hint:'惑星ホッパー：星を5こ進んだあと、まれに泳いでくる。飛んでいるときに近くを通ろう', desc:'星と星のあいだを泳ぐ、伝説のクジラ。'},
+  {id:'comet',    game:'hop',     name:'すい星くん',      hint:'惑星ホッパー：星を10こ進んだあと、まれに飛んでくる。飛んでいるときに近くを通ろう', desc:'氷とちりのかたまり。太陽に近づくと、長いしっぽがのびる。'},
+  {id:'snowman',  game:'thermo',  name:'ゆきだるま',      hint:'ぴったり温度計：50℃以下の問題で「ぴったり！」を出すと、ときどき現れる', desc:'0℃より寒ければ、いつまでも元気。'},
+  {id:'phoenix',  game:'thermo',  name:'ひのとり',        hint:'ぴったり温度計：1000℃以上の問題で「ぴったり！」を出すと、ときどき現れる', desc:'炎の中から何度でもよみがえる、伝説の鳥。'},
+  {id:'owl',      game:'rank',    name:'ものしりフクロウ', hint:'くらべてランキング：5問連続で正解すると、ときどき現れる', desc:'夜も昼も図鑑を読んでいる。'},
+  {id:'kingbot',  game:'rank',    name:'キングロボ',      hint:'くらべてランキング：10問連続で正解すると現れる', desc:'ロボットたちの王様。ランキングが大好き。'},
+].map(h => ({...h, img:H_IMG[h.id]}));
+const HBY = Object.fromEntries(HIDDEN.map(h => [h.id, h]));
+const hiddenFound = () => (SAVE.hidden || (SAVE.hidden = []));
+// call when a hidden character is reached: banner + collection (once per run)
+function findHidden(id){
+  if (!S || S.hiddenRun.includes(id)) return;
+  S.hiddenRun.push(id);
+  const h = HBY[id], first = !hiddenFound().includes(id);
+  if (first){ hiddenFound().push(id); persist(); }
+  $('#factL').textContent = first ? '隠れキャラ発見！' : '隠れキャラ';
+  $('#factK').textContent = first ? 'NEW' : '';
+  $('#factT').textContent = h.name; $('#factB').textContent = h.desc;
+  const c = $('#factImg'); c.width = h.img.width; c.height = h.img.height; c.style.width = (h.img.width*.18)+'em';
+  const x = c.getContext('2d'); x.clearRect(0,0,c.width,c.height); x.drawImage(h.img, 0, 0); c.hidden = false;
+  const el = $('#fact'); el.classList.add('show');
+  clearTimeout(factTimer); factTimer = setTimeout(() => el.classList.remove('show'), 3800);
+  sfx.secret();
+  track('hidden_found', {game_id:GAME.id, hidden_id:id, first_time:first});
+}
+// draw a hidden character centred on (x,y) with a twinkle so it reads as "something special"
+function drawSecret(id, x, y, t){
+  const img = H_IMG[id], X = Math.round(x - img.width/2), Y = Math.round(y - img.height/2);
+  ctx.fillStyle = `rgba(255,143,184,${(.18+.12*Math.sin(t*8)).toFixed(3)})`;
+  ctx.fillRect(X-3, Y-3, img.width+6, img.height+6);
+  ctx.drawImage(img, X, Y);
+  if (((t*6)|0)%2){ ctx.fillStyle = '#fff6b0'; ctx.fillRect(X-2, Y-2, 1, 1); ctx.fillRect(X+img.width+1, Y+2, 1, 1); }
+}
+// run fn a little later, but only if the same game run is still being played
+function later(ms, fn){ const run = S; setTimeout(() => { if (S===run && mode==='play' && !S.dead) fn(); }, ms); }
+// shared roll: has this run already met it, and did the dice say "now"?
+const hiddenRoll = (id, perSecond, dt) => !S.hiddenRun.includes(id) && Math.random() < perSecond*dt;
 
 const GAMES = [Rocket, Element, Dig, Hop, Thermo, Rank];
 const GBY = Object.fromEntries(GAMES.map(g => [g.id, g]));
@@ -1762,6 +1998,7 @@ function discover(i, extra=''){
   if (firstTime){ sv.found.push(i); persist(); }
   track('fact_found', {game_id:GAME.id, fact_no:i+1, first_time:firstTime});
   const f = GAME.facts[i];
+  $('#factImg').hidden = true;
   $('#factL').textContent = 'なぜ？発見！' + extra;
   $('#factK').textContent = f.k;
   $('#factT').textContent = f.t;
@@ -1789,7 +2026,7 @@ function startGame(id){
   audioOn(); sfx.start();
   GAME = GBY[id];
   // ready: the game waits on its instructions until the player touches the screen
-  S = {t:0, ready:true, diff:gsave(id).diff, dead:false, deadT:0, overShown:false, reason:'', parts:[], shake:0, foundRun:[], score:0, x:W/2, tx:W/2};
+  S = {t:0, ready:true, diff:gsave(id).diff, hiddenRun:[], dead:false, deadT:0, overShown:false, reason:'', parts:[], shake:0, foundRun:[], score:0, x:W/2, tx:W/2};
   layer.textContent = ''; layer.hidden = true; input.taps.length = 0;
   music.play('home');
   GAME.start();
@@ -1821,7 +2058,14 @@ function flashPlus(text){
   hud.plus.textContent = text; hud.plus.classList.remove('show'); void hud.plus.offsetWidth; hud.plus.classList.add('show');
   clearTimeout(plusTimer); plusTimer = setTimeout(() => hud.plus.classList.remove('show'), 1300);
 }
-function hideBig(){ hud.big.hidden = true; hud.alert.hidden = true; }
+function hideBig(){ hud.big.hidden = true; hud.alert.hidden = true; $('#toast').classList.remove('show'); }
+// big centered message for level-ups and new areas
+function toast(text, sub=''){
+  const el = $('#toast'); el.textContent = text;
+  if (sub){ const s = document.createElement('small'); s.textContent = sub; el.append(s); }
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  sfx.level();
+}
 let lastHud = '';
 function updateHud(){
   const h = GAME.hud();
@@ -1879,12 +2123,17 @@ function showOver(){
   } else {
     h.textContent = '次の発見まで、あと少し'; box.append(h);
   }
+  if (S.hiddenRun.length){
+    const hp = document.createElement('p'); hp.className = 'hidline';
+    hp.textContent = `隠れキャラ：${S.hiddenRun.map(id => HBY[id].name).join('、')}`;
+    box.append(hp);
+  }
   const ni = GAME.facts.findIndex((f,i) => !sv.found.includes(i));
   const p = document.createElement('p'); p.className = 'next';
   p.textContent = ni>=0 ? `次の発見：${GAME.lockHint(ni)}` : 'このゲームの「なぜ？」はぜんぶ発見した！';
   box.append(p);
   $('#shareText').hidden = true;
-  $('#shareBtn').textContent = '結果をコピー';
+  $('#shareBtn').textContent = '結果を共有';
   show('over');
 }
 
@@ -1940,8 +2189,8 @@ function refreshHome(){
     b.querySelector('.best .bl').textContent = `ベスト（${DIFF_LABEL[sv.diff]}）`;
     b.querySelector('.best b').textContent = best>0 ? g.fmt(best) : '—';
   });
-  const found = GAMES.reduce((s,g)=>s+gsave(g.id).found.length, 0);
-  $('#dexCount').textContent = `${found}/${TOTAL_FACTS}`;
+  const found = GAMES.reduce((s,g)=>s+gsave(g.id).found.length, 0) + hiddenFound().length;
+  $('#dexCount').textContent = `${found}/${TOTAL_FACTS + HIDDEN.length}`;
   $('#muteBtn').textContent = SAVE.mute ? '音 OFF' : '音 ON';
 }
 
@@ -1955,8 +2204,32 @@ function renderDex(){
     t.addEventListener('click', () => { sfx.click(); dexId = g.id; renderDex(); });
     tabs.append(t);
   }
-  const g = GBY[dexId], sv = gsave(g.id);
+  {
+    const t = document.createElement('button'); t.type = 'button'; t.className = 'tab secret'; t.setAttribute('role','tab');
+    t.textContent = '隠れキャラ'; t.setAttribute('aria-selected', String(dexId==='hidden'));
+    t.addEventListener('click', () => { sfx.click(); dexId = 'hidden'; renderDex(); });
+    tabs.append(t);
+  }
   const list = $('#dexList'); list.textContent = '';
+  if (dexId==='hidden'){
+    const got = hiddenFound();
+    HIDDEN.forEach((h,i) => {
+      const have = got.includes(h.id);
+      const li = document.createElement('li'); li.className = 'hid' + (have ? '' : ' lock');
+      const c = document.createElement('canvas'); c.className = 'pix'; c.width = h.img.width; c.height = h.img.height;
+      const x = c.getContext('2d'); x.drawImage(h.img, 0, 0);
+      if (!have){ x.globalCompositeOperation = 'source-in'; x.fillStyle = '#2a3570'; x.fillRect(0,0,c.width,c.height); }   // silhouette
+      const tx = document.createElement('div');
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = `No.${String(i+1).padStart(2,'0')}  ${GBY[h.game].short}`;
+      const b = document.createElement('b'); b.textContent = have ? h.name : '？？？';
+      const p = document.createElement('p'); p.textContent = have ? h.desc : h.hint;
+      tx.append(k, b, p); li.append(c, tx); list.append(li);
+    });
+    list.scrollTop = 0;
+    $('#dexSub').textContent = `隠れキャラ：${got.length} / ${HIDDEN.length} 発見`;
+    return;
+  }
+  const g = GBY[dexId], sv = gsave(g.id);
   g.facts.forEach((f,i) => {
     const got = sv.found.includes(i);
     const li = document.createElement('li'); if (!got) li.className = 'lock';
@@ -1996,12 +2269,23 @@ $('#pauseBtn').addEventListener('click', pauseGame);
 $('#resumeBtn').addEventListener('click', () => { audioOn(); sfx.click(); paused = false; show(null); last = performance.now(); });
 $('#retryBtn').addEventListener('click', () => startGame(GAME.id));
 $('#quitBtn').addEventListener('click', () => { sfx.click(); goHome(); });
-$('#shareBtn').addEventListener('click', () => {
+// share: the phone's own share sheet (LINE, X, Instagram…) with the game's link; copy as a fallback
+const SHARE_URL = 'https://pixelscience-games.github.io/';
+$('#shareBtn').addEventListener('click', async () => {
   const sv = gsave(GAME.id);
   const text = `PixelScience Games【${DIFF_LABEL[S.diff]}】${GAME.share(S.score)} なぜ？図鑑 ${sv.found.length}/${GAME.facts.length} #PixelScience`;
-  const out = $('#shareText'); out.textContent = text;
-  const done = ok => { $('#shareBtn').textContent = ok ? 'コピーしました' : '下の文を長押しでコピー'; out.hidden = false; };
-  try { navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); } catch(e){ done(false); }
+  const out = $('#shareText');
+  const done = msg => { $('#shareBtn').textContent = msg; };
+  if (navigator.share){
+    try {
+      await navigator.share({title:'PixelScience Games', text, url:SHARE_URL});
+      track('share', {game_id:GAME.id, method:'share_sheet'}); done('共有しました'); return;
+    } catch(e){ if (e && e.name === 'AbortError') return; }   // closed the sheet: nothing to do
+  }
+  const full = `${text}\n${SHARE_URL}`;
+  out.textContent = full; out.hidden = false;
+  try { await navigator.clipboard.writeText(full); done('コピーしました'); track('share', {game_id:GAME.id, method:'copy'}); }
+  catch(e){ done('下の文を長押しでコピー'); }
 });
 
 /* ---------- ホーム画面に追加 ----------
