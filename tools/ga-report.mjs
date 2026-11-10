@@ -1,6 +1,6 @@
 // Read-only Google Analytics 4 report for PixelScience Games.
-//   node tools/ga-report.mjs            → last 7 days
-//   node tools/ga-report.mjs 28         → last 28 days
+//   node tools/ga-report.mjs            → the 7 days up to yesterday (today is still being collected, so it is left out)
+//   node tools/ga-report.mjs 28         → the 28 days up to yesterday
 // Settings live OUTSIDE this public repo, in a ".pixelscience" folder (OneDrive first, so every PC
 // signed in to the same OneDrive can run this):
 //   1. %PIXELSCIENCE_DIR%   2. %OneDrive%\.pixelscience   3. %USERPROFILE%\OneDrive\.pixelscience   4. %USERPROFILE%\.pixelscience
@@ -13,6 +13,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 const DAYS = Math.max(1, parseInt(process.argv[2] || '7', 10));
+// N full days ending yesterday: NdaysAgo .. yesterday (both in the property's time zone, Japan time)
+function ymd(daysAgo){ return new Date(Date.now() + 9*3600e3 - daysAgo*864e5).toISOString().slice(0, 10); }
+const RANGE = { startDate: `${DAYS}daysAgo`, endDate: 'yesterday' };
 const dirs = [process.env.PIXELSCIENCE_DIR,
   process.env.OneDrive && path.join(process.env.OneDrive, '.pixelscience'),
   path.join(os.homedir(), 'OneDrive', '.pixelscience'),
@@ -42,21 +45,28 @@ const TOKEN = await token();
 async function report(req) {
   const r = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`, {
     method: 'POST', headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ dateRanges: [{ startDate: `${DAYS}daysAgo`, endDate: 'today' }], limit: 200, ...req }) });
+    body: JSON.stringify({ dateRanges: [RANGE], limit: 200, ...req }) });
   const j = await r.json();
   if (j.error) return { error: j.error.message };
   return (j.rows || []).map(row => [...(row.dimensionValues || []).map(v => v.value), ...(row.metricValues || []).map(v => Number(v.value))]);
 }
 const evFilter = (name) => ({ dimensionFilter: { filter: { fieldName: 'eventName', stringFilter: { value: name } } } });
-const table = (title, rows, cols) => {
+const table = (title, rows, cols, custom = false) => {
   console.log(`\n■ ${title}`);
   if (rows.error){ console.log(`  （取得できません: ${rows.error}）`); return; }
   if (!rows.length){ console.log('  （データなし）'); return; }
   console.log('  ' + cols.join(' | '));
-  for (const r of rows) console.log('  ' + r.map(v => typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : v).join(' | '));
+  let blank = false;
+  for (const r of rows) console.log('  ' + r.map(v => {
+    if (typeof v === 'number') return Number.isInteger(v) ? v : v.toFixed(1);
+    if (v === '(not set)' || v === '') { blank = true; return v === '' ? '（空欄）' : v; }
+    return v; }).join(' | '));
+  if (blank) console.log(custom
+    ? '  ※ (not set)・（空欄）＝値が届いていない行。カスタムディメンションの登録（2026-11-10）より前のデータか、登録後の集計待ち（反映に 24〜48 時間かかることがある）'
+    : '  ※ (not set)・（空欄）＝GA4 が値を判定できなかった行（集計中のこともある）');
 };
 
-console.log(`PixelScience Games — 過去${DAYS}日（プロパティ ${PROP}）`);
+console.log(`PixelScience Games — ${ymd(DAYS)} 〜 ${ymd(1)}（JST、昨日までの${DAYS}日。今日は集計中のため含めない。プロパティ ${PROP}）`);
 table('全体', await report({ metrics: [{name:'activeUsers'},{name:'newUsers'},{name:'sessions'},{name:'averageSessionDuration'},{name:'screenPageViews'}] }),
   ['ユーザー','新規','セッション','平均滞在(秒)','表示回数']);
 table('日別', await report({ dimensions: [{name:'date'}], metrics: [{name:'activeUsers'},{name:'newUsers'}], orderBys: [{dimension:{dimensionName:'date'}}] }),
@@ -69,16 +79,15 @@ table('イベント', await report({ dimensions: [{name:'eventName'}], metrics: 
   ['イベント','回数','人数']);
 // the following need the custom dimensions (event scope: game_id, difficulty, reason, hidden_id; user scope: display_mode)
 table('ゲーム別・難易度別の開始回数', await report({ dimensions: [{name:'customEvent:game_id'},{name:'customEvent:difficulty'}], metrics: [{name:'eventCount'},{name:'totalUsers'}], ...evFilter('game_start'), orderBys: [{metric:{metricName:'eventCount'},desc:true}] }),
-  ['ゲーム','難易度','回数','人数']);
+  ['ゲーム','難易度','回数','人数'], true);
 table('終わり方', await report({ dimensions: [{name:'customEvent:game_id'},{name:'customEvent:reason'}], metrics: [{name:'eventCount'}], ...evFilter('game_over'), orderBys: [{metric:{metricName:'eventCount'},desc:true}] }),
-  ['ゲーム','理由','回数']);
+  ['ゲーム','理由','回数'], true);
 table('隠れキャラ', await report({ dimensions: [{name:'customEvent:hidden_id'}], metrics: [{name:'eventCount'},{name:'totalUsers'}], ...evFilter('hidden_found') }),
-  ['キャラ','回数','人数']);
+  ['キャラ','回数','人数'], true);
 table('ホーム画面から遊んでいるか', await report({ dimensions: [{name:'customUser:display_mode'}], metrics: [{name:'activeUsers'}] }),
-  ['起動のしかた','ユーザー']);
+  ['起動のしかた','ユーザー'], true);
 // retention: of the people who first came on a given day, how many came back 1 / 7 days later
-// (cohorts need real dates, YYYY-MM-DD, in Japan time like the property)
-function ymd(daysAgo){ return new Date(Date.now() + 9*3600e3 - daysAgo*864e5).toISOString().slice(0, 10); }
+// (cohorts need real dates, YYYY-MM-DD, in Japan time like the property; ymd() is defined at the top)
 {
   const r = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${PROP}:runReport`, {
     method: 'POST', headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },

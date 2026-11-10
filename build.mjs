@@ -18,7 +18,7 @@ if (GA_ID && !/^G-[A-Z0-9]{4,}$/.test(GA_ID)) throw new Error(`gaId "${GA_ID}" d
 const VERSION = new Date().toISOString().replace(/\D/g, '').slice(0, 12);
 
 const TITLE = 'PixelScience Games';
-const DESC = '遊んでわかる！科学の「なぜ？」 PixelScienceの科学ミニゲーム集。指一本で遊べる6本のゲームと、99の「なぜ？」図鑑。';
+const DESC = '遊んでわかる！科学の「なぜ？」 PixelScienceの科学ミニゲーム集。指一本で遊べる6本のゲームと、114の「なぜ？」図鑑。';
 
 /* ---------- tiny PNG encoder (RGBA) ---------- */
 const crcTable = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });

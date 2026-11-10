@@ -97,9 +97,10 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 #install,#privacy{background:rgba(7,11,43,.92);gap:.8em}
 .plink{font:inherit;font-size:.6em;color:var(--white);opacity:.75;background:none;border:0;text-decoration:underline;cursor:pointer;padding:.3em}
 #home .plink{position:absolute;right:.5em;bottom:.15em;margin:0}
-#home .row{flex-wrap:nowrap;gap:.4em;font-size:.9em}
-#home .row .btn{padding:.5em .8em;white-space:nowrap}
-#home .row .install{white-space:nowrap}
+/* the bottom row (図鑑・音・ホームに追加) must leave a clear side margin even at 360px wide with "126/126" in it */
+#home .row{flex-wrap:nowrap;gap:.35em;font-size:.84em}
+#home .row .btn{padding:.5em .6em;white-space:nowrap}
+#home .row .install{white-space:nowrap;padding:.35em .75em .35em .55em}
 .ptext{max-width:19em;display:flex;flex-direction:column;gap:.6em;font-size:.82em;line-height:1.65;text-align:left;
   background:var(--panel);border:.12em solid rgba(169,184,238,.4);border-radius:.6em;padding:.8em 1em}
 .ptext b{color:var(--yellow);font-weight:400}
@@ -118,7 +119,9 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 #layer{position:absolute;inset:0;pointer-events:none}
 .tlabel{position:absolute;transform:translateY(-50%);font-size:.85em;color:var(--yellow);white-space:nowrap;
   text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
-.tscale{position:absolute;transform:translateY(-50%);font-size:.6em;color:var(--muted);white-space:nowrap}
+/* the scale's top / bottom temperatures: big enough to read on a phone, with the same ink outline as the target label */
+.tscale{position:absolute;transform:translateY(-50%);font-size:.85em;color:var(--muted);white-space:nowrap;
+  text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
 .tres{position:absolute;left:44%;right:.6em;top:58%;text-align:center;font-size:1.35em;line-height:1.3;
   text-shadow:.1em .1em 0 var(--ink),-.1em -.1em 0 var(--ink)}
 .tres small{font-size:.5em;color:var(--white)}
@@ -1711,6 +1714,7 @@ const Thermo = {
     ctx.fillStyle = 'rgba(255,255,255,.04)';
     for (let x=0;x<W;x+=12) ctx.fillRect(x,0,1,H);
     for (let y=0;y<H;y+=12) ctx.fillRect(0,y,W,1);
+    if (mode==='over') return;                  // results screen: keep only the backdrop, so the thermometer does not sit under the text
     const yT = tTop(), yB = tBot();
     // ticks
     for (let i=0;i<=10;i++){ const y = Math.round(yB - i/10*(yB-yT));
@@ -1969,6 +1973,12 @@ function findHidden(id){
   const h = HBY[id], first = !hiddenFound().includes(id);
   if (first){ hiddenFound().push(id); }
   hiddenMiss()[id] = 0; persist();
+  track('hidden_found', {game_id:GAME.id, hidden_id:id, first_time:first});
+  // a "なぜ？" banner that just opened gets its reading time first; the hidden-character banner follows it
+  const wait = (S.factUntil||0) - performance.now();
+  if (wait > 0) later(wait, () => showHidden(h, first)); else showHidden(h, first);
+}
+function showHidden(h, first){
   $('#factL').textContent = first ? '隠れキャラ発見！' : '隠れキャラ';
   $('#factK').textContent = first ? 'NEW' : '';
   $('#factT').textContent = h.name; $('#factB').textContent = h.desc;
@@ -1977,7 +1987,6 @@ function findHidden(id){
   const el = $('#fact'); el.classList.add('show');
   clearTimeout(factTimer); factTimer = setTimeout(() => el.classList.remove('show'), 3800);
   sfx.secret();
-  track('hidden_found', {game_id:GAME.id, hidden_id:id, first_time:first});
 }
 // draw a hidden character centred on (x,y) with a twinkle so it reads as "something special"
 function drawSecret(id, x, y, t){
@@ -2056,6 +2065,7 @@ function track(name, params={}){
 const runInfo = () => ({game_id:GAME.id, difficulty:S.diff, score:Math.round(S.score*10)/10, play_seconds:Math.round(S.t)});
 
 let factTimer = 0;
+const FACT_READ_MS = 2800;   // least time a "なぜ？" banner stays before another banner may replace it
 function discover(i, extra=''){
   if (S.foundRun.includes(i)) return;
   S.foundRun.push(i);
@@ -2071,6 +2081,7 @@ function discover(i, extra=''){
   $('#factB').textContent = f.b;
   const el = $('#fact'); el.classList.add('show');
   clearTimeout(factTimer); factTimer = setTimeout(() => el.classList.remove('show'), 3400);
+  S.factUntil = performance.now() + FACT_READ_MS;   // a hidden-character banner waits this long before replacing it
   sfx.fact();
 }
 
