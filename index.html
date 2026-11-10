@@ -260,7 +260,33 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .dexlist b{display:block;font-weight:400;font-size:.95em;margin-top:.15em}
 .dexlist p{font-size:.75em;line-height:1.5;margin-top:.15em}
 
+/* ---------- touch targets ----------
+   Small buttons keep their pixel look; an invisible ::before grows the area a finger can press to at least 44px.
+   Sizes are in px on purpose, so fitScreen's shrinking of short screens does not shrink the touch area. */
+.dbtn,.pbtn,.tab,#home .row .btn,#home .row .install{position:relative}
+.dbtn::before,.pbtn::before,.tab::before,.arrow::before,#home .row .btn::before,#home .row .install::before{
+  content:"";position:absolute;top:min(0px, calc((100% - 44px) / 2));bottom:min(0px, calc((100% - 44px) / 2));
+  left:min(0px, calc((100% - 44px) / 2));right:min(0px, calc((100% - 44px) / 2))}
+/* carousel dots: each button is a 44px-wide, 44px-tall clear target with the small dot drawn in its middle;
+   negative margins keep the row's height (and so the home layout) as before */
+.dots{gap:0}
+.dots button{position:relative;width:44px;height:44px;margin-block:calc((.6em - 44px) / 2);background:none;border-radius:0}
+.dots button::before{content:"";position:absolute;left:50%;top:50%;width:.6em;height:.6em;margin:-.3em 0 0 -.3em;
+  border-radius:50%;background:rgba(244,248,255,.4);transition:transform .15s}
+.dots button[aria-current="true"]{background:none;transform:none}
+.dots button[aria-current="true"]::before{background:var(--yellow);transform:scale(1.35)}
+.dots button:focus-visible{outline:none}
+.dots button:focus-visible::before{outline:.15em solid var(--white);outline-offset:.15em}
+/* "アクセス解析について" sits at the very bottom of the home screen: grow it upward only, so it never spills
+   past the scrolling screen (that would make fitScreen think the screen is too tall) */
+#home .plink::before{content:"";position:absolute;left:0;right:0;bottom:-.1em;height:44px}
+/* where that 44px would reach the buttons above it, the buttons win (they sit on top), so the areas never share a point */
+#home .row{position:relative;z-index:1}
+/* 図鑑 tabs wrap to two rows: leave enough row gap that the two rows' 44px areas do not overlap */
+.tabs{row-gap:max(.35em, calc(44px - 1.75em))}   /* a tab is 1.78〜1.82em tall, so gap + tab height ≥ 44px */
+
 @media (prefers-reduced-motion:reduce){
+  .dots button::before{transition:none}
   .btn.primary,#hint .tap,.rec.new,.gauge.warn em,#bigTime.warn,#alert{animation:none}
   #bigPlus.show{animation:none;opacity:1}
   #toast.show{animation:none;opacity:1}
@@ -411,15 +437,26 @@ try {
   const s = JSON.parse(localStorage.getItem(SAVE_KEY));
   if (s){
     SAVE.mute = !!s.mute;
-    if (s.games) SAVE.games = s.games;
+    if (s.games && typeof s.games === 'object' && !Array.isArray(s.games)){
+      for (const [k, g] of Object.entries(s.games)) if (g && typeof g === 'object' && !Array.isArray(g)) SAVE.games[k] = g;   // skip broken entries (gsave would throw on them)
+    }
     else if (s.best != null) SAVE.games.rocket = {best:s.best||0, found:s.found||[]}; // v1 → v2
+    // hidden-character collection and "met it yet?" counters (written by findHidden / hiddenRoll)
+    if (Array.isArray(s.hidden)) SAVE.hidden = [...new Set(s.hidden.filter(id => typeof id === 'string'))];
+    if (s.hmiss && typeof s.hmiss === 'object' && !Array.isArray(s.hmiss)){
+      SAVE.hmiss = {};
+      for (const [k, n] of Object.entries(s.hmiss)) if (typeof n === 'number' && isFinite(n) && n >= 0) SAVE.hmiss[k] = Math.floor(n);
+    }
+    if (typeof s.homeIdx === 'number' && isFinite(s.homeIdx)) SAVE.homeIdx = s.homeIdx|0;   // last game shown on home
   }
 } catch (e) {}
 function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
 function gsave(id){
   const g = SAVE.games[id] || (SAVE.games[id] = {best:0, found:[]});
-  if (!g.bests) g.bests = {easy:0, normal:g.best||0, hard:0};   // older saves only had one best (normal)
-  if (!g.diff) g.diff = 'normal';
+  if (!g.bests || typeof g.bests !== 'object') g.bests = {easy:0, normal:+g.best||0, hard:0};   // older saves only had one best (normal)
+  for (const d of ['easy','normal','hard']) if (typeof g.bests[d] !== 'number' || !isFinite(g.bests[d])) g.bests[d] = 0;
+  if (!Array.isArray(g.found)) g.found = [];
+  if (!['easy','normal','hard'].includes(g.diff)) g.diff = 'normal';
   return g;
 }
 const DIFFS = ['easy','normal','hard'];
@@ -1921,6 +1958,9 @@ const HIDDEN = [
   {id:'kingbot',  game:'rank',    name:'キングロボ',      hint:'くらべてランキング：15問連続で正解すると現れる', desc:'ロボットたちの王様。ランキングが大好き。'},
 ].map(h => ({...h, img:H_IMG[h.id]}));
 const HBY = Object.fromEntries(HIDDEN.map(h => [h.id, h]));
+// keep only ids that still exist (a broken or older save can hold unknown ones)
+if (SAVE.hidden) SAVE.hidden = SAVE.hidden.filter(id => HBY[id]);
+if (SAVE.hmiss) for (const k of Object.keys(SAVE.hmiss)) if (!HBY[k]) delete SAVE.hmiss[k];
 const hiddenFound = () => (SAVE.hidden || (SAVE.hidden = []));
 // call when a hidden character is reached: banner + collection (once per run)
 function findHidden(id){
