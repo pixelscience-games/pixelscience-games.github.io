@@ -1,0 +1,7 @@
+﻿# secrets never go in this public repo (the analytics key lives in %USERPROFILE%\.pixelscience)
+*-key.json
+*.pem
+.pixelscience/
+# local test files
+_*.html
+_*.js
