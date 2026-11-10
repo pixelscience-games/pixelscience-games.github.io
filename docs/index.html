@@ -59,8 +59,11 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 #stage{position:relative;overflow:hidden;touch-action:none;background:var(--space);font-size:17px}
 #cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
 
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:.7em;padding:1.1em 1em;text-align:center}
+/* screens center their content while it fits, and scroll from the top (never cut off at the top) when it does not */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:.7em;padding:1.1em 1em;text-align:center;overflow-y:auto;touch-action:pan-y}
+.screen > :first-child{margin-top:auto}
+.screen > :last-child{margin-bottom:auto}
 .pix{image-rendering:pixelated;image-rendering:crisp-edges}
 #over,#pause,#dex{background:rgba(7,11,43,.66)}
 
@@ -259,7 +262,8 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
 .found li{list-style:none}
 .found li::before{content:"■ ";color:var(--cyan)}
 .found .next{color:var(--muted)}
-.share{font-size:.72em;color:var(--muted);max-width:19em;-webkit-user-select:text;user-select:text}
+.share{font-size:.72em;color:var(--white);max-width:19em;-webkit-user-select:text;user-select:text;
+  background:var(--panel);border:.12em solid rgba(169,184,238,.4);border-radius:.5em;padding:.5em .7em;line-height:1.5}
 
 /* ---------- 図鑑 ---------- */
 #dex{justify-content:flex-start;padding-top:1.3em}
@@ -861,8 +865,8 @@ const Rocket = {
       // hidden characters: UFO (above 100 km) and the space cat (past geostationary orbit)
       if (!S.sec){
         const dir = Math.random()<.5 ? -1 : 1;
-        if (S.km>=100 && hiddenRoll('ufo', .05, dt)) S.sec = {id:'ufo', x: dir>0 ? -16 : W+16, y:rnd(24, H*.45), vx:dir*34, fall:.2};
-        else if (S.km>=35786 && hiddenRoll('spacecat', .05, dt)) S.sec = {id:'spacecat', x:rnd(24, W-24), y:-16, vx:rnd(-6,6), fall:.45};
+        if (S.km>=100 && hiddenRoll('ufo', .016, dt)) S.sec = {id:'ufo', x: dir>0 ? -16 : W+16, y:rnd(24, H*.45), vx:dir*34, fall:.2};
+        else if (S.km>=35786 && hiddenRoll('spacecat', .016, dt)) S.sec = {id:'spacecat', x:rnd(24, W-24), y:-16, vx:rnd(-6,6), fall:.45};
       }
       if (S.sec){
         const s = S.sec; s.x += s.vx*dt; s.y += S.speed*s.fall*dt + Math.sin(S.t*3)*6*dt;
@@ -1037,8 +1041,8 @@ const Element = {
       if (S.hearts<3 && Math.random()<P.heart && !S.items.some(it => it.sym==='heart')) sym = 'heart';
       // hidden robots fall now and then once enough molecules are made
       else if (!S.items.some(it => it.sym[0]==='@')){
-        if (S.made>=8 && hiddenRoll('pinkbot', .06, 1)) sym = '@pinkbot';
-        else if (S.made>=4 && hiddenRoll('goldbot', .06, 1)) sym = '@goldbot';
+        if (S.made>=8 && hiddenRoll('pinkbot', .02, 1)) sym = '@pinkbot';
+        else if (S.made>=4 && hiddenRoll('goldbot', .02, 1)) sym = '@goldbot';
       }
       const drift = S.made>=P.driftFrom ? rnd(-1,1)*Math.min(30, 8+S.made*3) : 0;
       S.items.push({sym, x:rnd(9,W-9), y:-8, vx:drift, vy:S.fall*rnd(.8,1.25), ph:Math.random()*6});
@@ -1202,8 +1206,8 @@ const Dig = {
     const busy = S.secs.some(s => s.d > S.dist-10);
     if (!busy){
       const placed = id => !S.secs.some(s => s.id===id);
-      if (S.km>=4 && S.km<30 && placed('mole') && hiddenRoll('mole', .15, dt)) S.secs.push({id:'mole', d:S.dist+H*.8});
-      else if (S.km>=660 && S.km<5000 && placed('golem') && hiddenRoll('golem', .12, dt)) S.secs.push({id:'golem', d:S.dist+H*.8});
+      if (S.km>=4 && S.km<30 && placed('mole') && hiddenRoll('mole', .045, dt)) S.secs.push({id:'mole', d:S.dist+H*.8});
+      else if (S.km>=660 && S.km<5000 && placed('golem') && hiddenRoll('golem', .04, dt)) S.secs.push({id:'golem', d:S.dist+H*.8});
     }
     for (const s of S.secs){
       if (!s.got && S.dist >= s.d-6){ s.got = true; findHidden(s.id); burst(W/2, dy+4, 24, ['#ff8fb8','#ffd23a','#f4f8ff'], 60, .7); }
@@ -1533,8 +1537,8 @@ const Hop = {
       const next = S.bodies.find(b => b.k === S.cur.k+1);
       const dir = Math.random()<.5 ? -1 : 1;
       const mk = id => ({id, x: dir>0 ? -20 : W+20, y: next ? (S.cur.y+next.y)/2 + rnd(-15,15) : S.cur.y-60, vx: dir*rnd(14,22)});
-      if (S.score>=10 && hiddenRoll('comet', .04, dt)) S.sec = mk('comet');
-      else if (S.score>=5 && hiddenRoll('whale', .04, dt)) S.sec = mk('whale');
+      if (S.score>=10 && hiddenRoll('comet', .013, dt)) S.sec = mk('comet');
+      else if (S.score>=5 && hiddenRoll('whale', .013, dt)) S.sec = mk('whale');
     }
     if (S.sec){
       const s = S.sec; s.x += s.vx*dt;
@@ -1680,8 +1684,8 @@ const Thermo = {
       r.textContent = perfect ? 'ぴったり！' : 'セーフ！';
       // a perfect stop can call out a hidden character
       if (perfect){
-        if (S.it.t <= 50 && hiddenRoll('snowman', .5, 1)) later(700, () => findHidden('snowman'));
-        else if (S.it.t >= 1000 && hiddenRoll('phoenix', .5, 1)) later(700, () => findHidden('phoenix'));
+        if (S.it.t <= 50 && hiddenRoll('snowman', .2, 1)) later(700, () => findHidden('snowman'));
+        else if (S.it.t >= 1000 && hiddenRoll('phoenix', .2, 1)) later(700, () => findHidden('phoenix'));
       }
       if (!S.foundRun.includes(S.ii)) discover(S.ii);
     } else {
@@ -1879,8 +1883,8 @@ const Rank = {
       burst(side===0 ? W*.27 : W*.73, H*.48, 18, ['#5ee05e','#ffd23a','#f4f8ff'], 55, .6);
       const wi = S.pair[win], li = S.pair[1-win];
       S.streak++;
-      if (S.streak>=10 && !S.hiddenRun.includes('kingbot')) later(600, () => findHidden('kingbot'));
-      else if (S.streak>=5 && hiddenRoll('owl', .35, 1)) later(600, () => findHidden('owl'));
+      if (S.streak>=15 && !S.hiddenRun.includes('kingbot')) later(600, () => findHidden('kingbot'));
+      else if (S.streak>=5 && hiddenRoll('owl', .12, 1)) later(600, () => findHidden('owl'));
       else if (!S.foundRun.includes(wi)) discover(wi); else if (!S.foundRun.includes(li)) discover(li);
       if (S.streak===5 || S.streak===10 || (S.streak>10 && S.streak%10===0)) toast(`${S.streak}問れんぞく正解！`);
       if (S.score===10) later(1200, () => toast('レベルアップ', 'ここから、むずかしい問題がふえる'));
@@ -1943,7 +1947,7 @@ const HIDDEN = [
   {id:'snowman',  game:'thermo',  name:'ゆきだるま',      hint:'ぴったり温度計：50℃以下の問題で「ぴったり！」を出すと、ときどき現れる', desc:'0℃より寒ければ、いつまでも元気。'},
   {id:'phoenix',  game:'thermo',  name:'ひのとり',        hint:'ぴったり温度計：1000℃以上の問題で「ぴったり！」を出すと、ときどき現れる', desc:'炎の中から何度でもよみがえる、伝説の鳥。'},
   {id:'owl',      game:'rank',    name:'ものしりフクロウ', hint:'くらべてランキング：5問連続で正解すると、ときどき現れる', desc:'夜も昼も図鑑を読んでいる。'},
-  {id:'kingbot',  game:'rank',    name:'キングロボ',      hint:'くらべてランキング：10問連続で正解すると現れる', desc:'ロボットたちの王様。ランキングが大好き。'},
+  {id:'kingbot',  game:'rank',    name:'キングロボ',      hint:'くらべてランキング：15問連続で正解すると現れる', desc:'ロボットたちの王様。ランキングが大好き。'},
 ].map(h => ({...h, img:H_IMG[h.id]}));
 const HBY = Object.fromEntries(HIDDEN.map(h => [h.id, h]));
 const hiddenFound = () => (SAVE.hidden || (SAVE.hidden = []));
@@ -2041,16 +2045,22 @@ function discover(i, extra=''){
 const screens = ['home','over','dex','pause','install','privacy'];
 function show(id){
   screens.forEach(s => { $('#'+s).hidden = s!==id; });
-  if (id==='home'){ fitHome(); setTimeout(() => goSlide(homeIdx, false), 0); music.play('home'); }   // re-snap after the carousel becomes visible again
+  if (id && id!=='dex') fitScreen($('#'+id));
+  if (id==='home'){ setTimeout(() => goSlide(homeIdx, false), 0); music.play('home'); }   // re-snap after the carousel becomes visible again
 }
-// short phone screens (browser bars take space): shrink the whole home screen until it fits without scrolling
-function fitHome(){
-  const home = $('#home');
-  if (home.hidden) return;
-  home.style.fontSize = '';
-  const need = home.scrollHeight, have = home.clientHeight;
-  if (need > have + 1) home.style.fontSize = Math.max(.72, have/need*.985).toFixed(3) + 'em';
+// short phone screens (browser bars take space): shrink a whole screen until it fits without scrolling;
+// if even the smallest size is too tall, the screen scrolls from the top
+function fitScreen(el){
+  if (!el || el.hidden) return;
+  el.style.fontSize = '';
+  for (let i=0;i<3;i++){                       // a couple of passes: wrapped text changes height as it shrinks
+    const need = el.scrollHeight, have = el.clientHeight;
+    if (need <= have + 1) return;
+    const cur = parseFloat(el.style.fontSize) || 1;
+    el.style.fontSize = Math.max(.7, cur * have/need * .985).toFixed(3) + 'em';
+  }
 }
+const fitHome = () => fitScreen($('#home'));
 
 function startGame(id){
   audioOn(); sfx.start();
@@ -2313,7 +2323,7 @@ $('#shareBtn').addEventListener('click', async () => {
     } catch(e){ if (e && e.name === 'AbortError') return; }   // closed the sheet: nothing to do
   }
   const full = `${text}\n${SHARE_URL}`;
-  out.textContent = full; out.hidden = false;
+  out.textContent = full; out.hidden = false; fitScreen($('#over'));
   try { await navigator.clipboard.writeText(full); done('コピーしました'); track('share', {game_id:GAME.id, method:'copy'}); }
   catch(e){ done('下の文を長押しでコピー'); }
 });
