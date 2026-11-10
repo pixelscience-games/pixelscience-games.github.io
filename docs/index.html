@@ -280,6 +280,7 @@ body{background:var(--space);color:var(--white);font-family:var(--f-pixel);overf
   border:.14em solid rgba(169,184,238,.4);border-radius:.4em;padding:.4em .2em;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--yellow);color:var(--ink);border-color:var(--white)}
 .dsub{font-size:.8em;color:var(--muted)}
+.dsub .dnote{display:block;margin-top:.35em;font-size:.85em;line-height:1.5;color:var(--pink);max-width:22em}
 .dexlist{flex:1;min-height:0;width:100%;max-width:20em;overflow-y:auto;touch-action:pan-y;display:flex;flex-direction:column;gap:.5em;
   margin:0;padding:.2em .1em;list-style:none;text-align:left}
 .dexlist li{background:var(--panel);border:.12em solid var(--yellow);border-radius:.6em;padding:.55em .75em}
@@ -865,8 +866,8 @@ const Rocket = {
       // hidden characters: UFO (above 100 km) and the space cat (past geostationary orbit)
       if (!S.sec){
         const dir = Math.random()<.5 ? -1 : 1;
-        if (S.km>=100 && hiddenRoll('ufo', .016, dt)) S.sec = {id:'ufo', x: dir>0 ? -16 : W+16, y:rnd(24, H*.45), vx:dir*34, fall:.2};
-        else if (S.km>=35786 && hiddenRoll('spacecat', .016, dt)) S.sec = {id:'spacecat', x:rnd(24, W-24), y:-16, vx:rnd(-6,6), fall:.45};
+        if (S.km>=100 && hiddenRoll('ufo', .25, dt)) S.sec = {id:'ufo', x: dir>0 ? -16 : W+16, y:rnd(24, H*.45), vx:dir*34, fall:.2};
+        else if (S.km>=35786 && hiddenRoll('spacecat', .25, dt)) S.sec = {id:'spacecat', x:rnd(24, W-24), y:-16, vx:rnd(-6,6), fall:.45};
       }
       if (S.sec){
         const s = S.sec; s.x += s.vx*dt; s.y += S.speed*s.fall*dt + Math.sin(S.t*3)*6*dt;
@@ -1041,8 +1042,8 @@ const Element = {
       if (S.hearts<3 && Math.random()<P.heart && !S.items.some(it => it.sym==='heart')) sym = 'heart';
       // hidden robots fall now and then once enough molecules are made
       else if (!S.items.some(it => it.sym[0]==='@')){
-        if (S.made>=8 && hiddenRoll('pinkbot', .02, 1)) sym = '@pinkbot';
-        else if (S.made>=4 && hiddenRoll('goldbot', .02, 1)) sym = '@goldbot';
+        if (S.made>=8 && hiddenRoll('pinkbot', .15, 1)) sym = '@pinkbot';
+        else if (S.made>=4 && hiddenRoll('goldbot', .15, 1)) sym = '@goldbot';
       }
       const drift = S.made>=P.driftFrom ? rnd(-1,1)*Math.min(30, 8+S.made*3) : 0;
       S.items.push({sym, x:rnd(9,W-9), y:-8, vx:drift, vy:S.fall*rnd(.8,1.25), ph:Math.random()*6});
@@ -1206,8 +1207,8 @@ const Dig = {
     const busy = S.secs.some(s => s.d > S.dist-10);
     if (!busy){
       const placed = id => !S.secs.some(s => s.id===id);
-      if (S.km>=4 && S.km<30 && placed('mole') && hiddenRoll('mole', .045, dt)) S.secs.push({id:'mole', d:S.dist+H*.8});
-      else if (S.km>=660 && S.km<5000 && placed('golem') && hiddenRoll('golem', .04, dt)) S.secs.push({id:'golem', d:S.dist+H*.8});
+      if (S.km>=4 && S.km<30 && placed('mole') && hiddenRoll('mole', .5, dt)) S.secs.push({id:'mole', d:S.dist+H*.8});
+      else if (S.km>=660 && S.km<5000 && placed('golem') && hiddenRoll('golem', .5, dt)) S.secs.push({id:'golem', d:S.dist+H*.8});
     }
     for (const s of S.secs){
       if (!s.got && S.dist >= s.d-6){ s.got = true; findHidden(s.id); burst(W/2, dy+4, 24, ['#ff8fb8','#ffd23a','#f4f8ff'], 60, .7); }
@@ -1537,8 +1538,8 @@ const Hop = {
       const next = S.bodies.find(b => b.k === S.cur.k+1);
       const dir = Math.random()<.5 ? -1 : 1;
       const mk = id => ({id, x: dir>0 ? -20 : W+20, y: next ? (S.cur.y+next.y)/2 + rnd(-15,15) : S.cur.y-60, vx: dir*rnd(14,22)});
-      if (S.score>=10 && hiddenRoll('comet', .013, dt)) S.sec = mk('comet');
-      else if (S.score>=5 && hiddenRoll('whale', .013, dt)) S.sec = mk('whale');
+      if (S.score>=10 && hiddenRoll('comet', .25, dt)) S.sec = mk('comet');
+      else if (S.score>=5 && hiddenRoll('whale', .25, dt)) S.sec = mk('whale');
     }
     if (S.sec){
       const s = S.sec; s.x += s.vx*dt;
@@ -1684,8 +1685,8 @@ const Thermo = {
       r.textContent = perfect ? 'ぴったり！' : 'セーフ！';
       // a perfect stop can call out a hidden character
       if (perfect){
-        if (S.it.t <= 50 && hiddenRoll('snowman', .2, 1)) later(700, () => findHidden('snowman'));
-        else if (S.it.t >= 1000 && hiddenRoll('phoenix', .2, 1)) later(700, () => findHidden('phoenix'));
+        if (S.it.t <= 50 && hiddenRoll('snowman', 1, 1)) later(700, () => findHidden('snowman'));
+        else if (S.it.t >= 1000 && hiddenRoll('phoenix', 1, 1)) later(700, () => findHidden('phoenix'));
       }
       if (!S.foundRun.includes(S.ii)) discover(S.ii);
     } else {
@@ -1884,7 +1885,7 @@ const Rank = {
       const wi = S.pair[win], li = S.pair[1-win];
       S.streak++;
       if (S.streak>=15 && !S.hiddenRun.includes('kingbot')) later(600, () => findHidden('kingbot'));
-      else if (S.streak>=5 && hiddenRoll('owl', .12, 1)) later(600, () => findHidden('owl'));
+      else if (S.streak>=5 && hiddenRoll('owl', 1, 1)) later(600, () => findHidden('owl'));
       else if (!S.foundRun.includes(wi)) discover(wi); else if (!S.foundRun.includes(li)) discover(li);
       if (S.streak===5 || S.streak===10 || (S.streak>10 && S.streak%10===0)) toast(`${S.streak}問れんぞく正解！`);
       if (S.score===10) later(1200, () => toast('レベルアップ', 'ここから、むずかしい問題がふえる'));
@@ -1936,17 +1937,17 @@ const H_IMG = {
   kingbot: withCrown(robotSprite('#c070ff', false, true)),
 };
 const HIDDEN = [
-  {id:'ufo',      game:'rocket',  name:'UFO',            hint:'ロケット・ライズ：高度100kmより上で、まれに横切っていく', desc:'正体不明の円盤。だれが乗っているのかは、まだだれも知らない。'},
-  {id:'spacecat', game:'rocket',  name:'宇宙ネコ',        hint:'ロケット・ライズ：静止軌道（約3.6万km）より先で、まれにふわふわ浮いている', desc:'宇宙服を着たネコ。無重力でもちゃんと着地できる自信がある。'},
-  {id:'goldbot',  game:'element', name:'ゴールドロボ',    hint:'元素キャッチ：分子を4こ作ったあと、まれに落ちてくる', desc:'金（Au）でピカピカのロボット。金はさびにくいので、いつまでもピカピカ。'},
-  {id:'pinkbot',  game:'element', name:'ピンクロボ',      hint:'元素キャッチ：分子を8こ作ったあと、まれに落ちてくる', desc:'博士の助手のひとり。フラスコ洗いが得意。'},
-  {id:'mole',     game:'dig',     name:'モグラ先生',      hint:'地球ほりほり：地殻（深さ4km〜35km）で、まれに出会う', desc:'地下のことなら何でも知っている。でも本物のモグラは地下数十cmあたりでくらしている。'},
-  {id:'golem',    game:'dig',     name:'マグマゴーレム',  hint:'地球ほりほり：マントル（深さ660kmより下）で、まれに出会う', desc:'マントルの熱で動く、ふしぎな岩の巨人。'},
-  {id:'whale',    game:'hop',     name:'宇宙クジラ',      hint:'惑星ホッパー：星を5こ進んだあと、まれに泳いでくる。飛んでいるときに近くを通ろう', desc:'星と星のあいだを泳ぐ、伝説のクジラ。'},
-  {id:'comet',    game:'hop',     name:'すい星くん',      hint:'惑星ホッパー：星を10こ進んだあと、まれに飛んでくる。飛んでいるときに近くを通ろう', desc:'氷とちりのかたまり。太陽に近づくと、長いしっぽがのびる。'},
-  {id:'snowman',  game:'thermo',  name:'ゆきだるま',      hint:'ぴったり温度計：50℃以下の問題で「ぴったり！」を出すと、ときどき現れる', desc:'0℃より寒ければ、いつまでも元気。'},
-  {id:'phoenix',  game:'thermo',  name:'ひのとり',        hint:'ぴったり温度計：1000℃以上の問題で「ぴったり！」を出すと、ときどき現れる', desc:'炎の中から何度でもよみがえる、伝説の鳥。'},
-  {id:'owl',      game:'rank',    name:'ものしりフクロウ', hint:'くらべてランキング：5問連続で正解すると、ときどき現れる', desc:'夜も昼も図鑑を読んでいる。'},
+  {id:'ufo',      game:'rocket',  name:'UFO',            hint:'ロケット・ライズ：高度100kmより上で、運がよければ横切っていく', desc:'正体不明の円盤。だれが乗っているのかは、まだだれも知らない。'},
+  {id:'spacecat', game:'rocket',  name:'宇宙ネコ',        hint:'ロケット・ライズ：静止軌道（約3.6万km）より先で、運がよければふわふわ浮いている', desc:'宇宙服を着たネコ。無重力でもちゃんと着地できる自信がある。'},
+  {id:'goldbot',  game:'element', name:'ゴールドロボ',    hint:'元素キャッチ：分子を4こ作ったあと、運がよければ落ちてくる', desc:'金（Au）でピカピカのロボット。金はさびにくいので、いつまでもピカピカ。'},
+  {id:'pinkbot',  game:'element', name:'ピンクロボ',      hint:'元素キャッチ：分子を8こ作ったあと、運がよければ落ちてくる', desc:'博士の助手のひとり。フラスコ洗いが得意。'},
+  {id:'mole',     game:'dig',     name:'モグラ先生',      hint:'地球ほりほり：地殻（深さ4km〜35km）で、運がよければ出会う', desc:'地下のことなら何でも知っている。でも本物のモグラは地下数十cmあたりでくらしている。'},
+  {id:'golem',    game:'dig',     name:'マグマゴーレム',  hint:'地球ほりほり：マントル（深さ660kmより下）で、運がよければ出会う', desc:'マントルの熱で動く、ふしぎな岩の巨人。'},
+  {id:'whale',    game:'hop',     name:'宇宙クジラ',      hint:'惑星ホッパー：星を5こ進んだあと、運がよければ泳いでくる。飛んでいるときに近くを通ろう', desc:'星と星のあいだを泳ぐ、伝説のクジラ。'},
+  {id:'comet',    game:'hop',     name:'すい星くん',      hint:'惑星ホッパー：星を10こ進んだあと、運がよければ飛んでくる。飛んでいるときに近くを通ろう', desc:'氷とちりのかたまり。太陽に近づくと、長いしっぽがのびる。'},
+  {id:'snowman',  game:'thermo',  name:'ゆきだるま',      hint:'ぴったり温度計：50℃以下の問題で「ぴったり！」を出すと、運がよければ現れる', desc:'0℃より寒ければ、いつまでも元気。'},
+  {id:'phoenix',  game:'thermo',  name:'ひのとり',        hint:'ぴったり温度計：1000℃以上の問題で「ぴったり！」を出すと、運がよければ現れる', desc:'炎の中から何度でもよみがえる、伝説の鳥。'},
+  {id:'owl',      game:'rank',    name:'ものしりフクロウ', hint:'くらべてランキング：5問連続で正解すると、運がよければ現れる', desc:'夜も昼も図鑑を読んでいる。'},
   {id:'kingbot',  game:'rank',    name:'キングロボ',      hint:'くらべてランキング：15問連続で正解すると現れる', desc:'ロボットたちの王様。ランキングが大好き。'},
 ].map(h => ({...h, img:H_IMG[h.id]}));
 const HBY = Object.fromEntries(HIDDEN.map(h => [h.id, h]));
@@ -1956,7 +1957,8 @@ function findHidden(id){
   if (!S || S.hiddenRun.includes(id)) return;
   S.hiddenRun.push(id);
   const h = HBY[id], first = !hiddenFound().includes(id);
-  if (first){ hiddenFound().push(id); persist(); }
+  if (first){ hiddenFound().push(id); }
+  hiddenMiss()[id] = 0; persist();
   $('#factL').textContent = first ? '隠れキャラ発見！' : '隠れキャラ';
   $('#factK').textContent = first ? 'NEW' : '';
   $('#factT').textContent = h.name; $('#factB').textContent = h.desc;
@@ -1978,7 +1980,27 @@ function drawSecret(id, x, y, t){
 // run fn a little later, but only if the same game run is still being played
 function later(ms, fn){ const run = S; setTimeout(() => { if (S===run && mode==='play' && !S.dead) fn(); }, ms); }
 // shared roll: has this run already met it, and did the dice say "now"?
-const hiddenRoll = (id, perSecond, dt) => !S.hiddenRun.includes(id) && Math.random() < perSecond*dt;
+// Per-play lottery: when a game starts, each of its hidden characters is either "in this play" or not.
+// Players who reach the place PITY times in a row without meeting it are guaranteed to meet it next time.
+const HIDDEN_RATE = {ufo:.2, spacecat:.15, goldbot:.2, pinkbot:.15, mole:.25, golem:.2, whale:.2, comet:.15,
+  snowman:.25, phoenix:.2, owl:.25};
+const PITY = 8;
+const hiddenMiss = () => (SAVE.hmiss || (SAVE.hmiss = {}));
+function planHidden(gameId){
+  S.hplan = {}; S.hreach = {};
+  for (const h of HIDDEN) if (h.game===gameId && HIDDEN_RATE[h.id]){
+    S.hplan[h.id] = (hiddenMiss()[h.id]||0) >= PITY || Math.random() < HIDDEN_RATE[h.id];
+  }
+}
+// Called by a game only where the character can appear. Returns true when it should show up now.
+// perSecond only sets how soon it appears after the place is reached (dt=1 for one-off events).
+function hiddenRoll(id, perSecond, dt){
+  if (!S.hplan || S.hiddenRun.includes(id)) return false;
+  if (!S.hreach[id]){   // first time this play reaches the place: count toward the guarantee
+    S.hreach[id] = true; hiddenMiss()[id] = (hiddenMiss()[id]||0) + 1; persist();
+  }
+  return !!S.hplan[id] && Math.random() < perSecond*dt;
+}
 
 const GAMES = [Rocket, Element, Dig, Hop, Thermo, Rank];
 const GBY = Object.fromEntries(GAMES.map(g => [g.id, g]));
@@ -2069,6 +2091,7 @@ function startGame(id){
   S = {t:0, ready:true, diff:gsave(id).diff, hiddenRun:[], dead:false, deadT:0, overShown:false, reason:'', parts:[], shake:0, foundRun:[], score:0, x:W/2, tx:W/2};
   layer.textContent = ''; layer.hidden = true; input.taps.length = 0;
   music.play('home');
+  planHidden(id);
   GAME.start();
   mode = 'play'; paused = false; drag = null; input.hold = false; lastHud = ''; lastHearts = null;
   show(null); $('#hud').hidden = false;
@@ -2267,6 +2290,9 @@ function renderDex(){
     });
     list.scrollTop = 0;
     $('#dexSub').textContent = `隠れキャラ：${got.length} / ${HIDDEN.length} 発見`;
+    const note = document.createElement('small'); note.className = 'dnote';
+    note.textContent = `会えるかどうかは、1回のプレイごとに決まる。会えない回が${PITY}回続くと、次は必ず会える！`;
+    $('#dexSub').append(note);
     return;
   }
   const g = GBY[dexId], sv = gsave(g.id);
