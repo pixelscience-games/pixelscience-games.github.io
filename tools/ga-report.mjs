@@ -1,21 +1,27 @@
 // Read-only Google Analytics 4 report for PixelScience Games.
 //   node tools/ga-report.mjs            → last 7 days
 //   node tools/ga-report.mjs 28         → last 28 days
-// Settings live OUTSIDE this public repo: %USERPROFILE%\.pixelscience\ga.json
-//   { "propertyId": "123456789", "keyFile": "C:\\Users\\you\\.pixelscience\\ga-key.json" }
+// Settings live OUTSIDE this public repo, in a ".pixelscience" folder (OneDrive first, so every PC
+// signed in to the same OneDrive can run this):
+//   1. %PIXELSCIENCE_DIR%   2. %OneDrive%\.pixelscience   3. %USERPROFILE%\OneDrive\.pixelscience   4. %USERPROFILE%\.pixelscience
+// ga.json: { "propertyId": "123456789", "keyFile": "ga-key.json" }   (keyFile may be relative to ga.json)
 // keyFile = the service account's JSON key (that account only has the Viewer role in Analytics).
 // No packages needed: the OAuth token is signed with Node's built-in crypto.
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { createSign } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
 const DAYS = Math.max(1, parseInt(process.argv[2] || '7', 10));
-const cfgPath = path.join(os.homedir(), '.pixelscience', 'ga.json');
-let cfg;
-try { cfg = JSON.parse(await readFile(cfgPath, 'utf8')); }
-catch { console.error(`設定ファイルがありません: ${cfgPath}`); process.exit(1); }
-const key = JSON.parse(await readFile(cfg.keyFile, 'utf8'));
+const dirs = [process.env.PIXELSCIENCE_DIR,
+  process.env.OneDrive && path.join(process.env.OneDrive, '.pixelscience'),
+  path.join(os.homedir(), 'OneDrive', '.pixelscience'),
+  path.join(os.homedir(), '.pixelscience')].filter(Boolean);
+let cfgDir = null;
+for (const d of dirs){ try { await access(path.join(d, 'ga.json')); cfgDir = d; break; } catch {} }
+if (!cfgDir){ console.error('設定ファイル ga.json が見つかりません。探した場所:\n  ' + dirs.join('\n  ')); process.exit(1); }
+const cfg = JSON.parse(await readFile(path.join(cfgDir, 'ga.json'), 'utf8'));
+const key = JSON.parse(await readFile(path.resolve(cfgDir, cfg.keyFile), 'utf8'));
 const PROP = String(cfg.propertyId).replace(/\D/g, '');
 
 /* ---------- access token (service account JWT → OAuth) ---------- */
