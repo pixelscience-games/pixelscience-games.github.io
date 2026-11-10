@@ -51,14 +51,16 @@ async function report(req) {
   return (j.rows || []).map(row => [...(row.dimensionValues || []).map(v => v.value), ...(row.metricValues || []).map(v => Number(v.value))]);
 }
 const evFilter = (name) => ({ dimensionFilter: { filter: { fieldName: 'eventName', stringFilter: { value: name } } } });
-const table = (title, rows, cols, custom = false) => {
+// optional = column indexes where (not set)/blank is normal (e.g. utm_content when no utm was used): shown as －, no warning
+const table = (title, rows, cols, custom = false, optional = []) => {
   console.log(`\n■ ${title}`);
   if (rows.error){ console.log(`  （取得できません: ${rows.error}）`); return; }
   if (!rows.length){ console.log('  （データなし）'); return; }
   console.log('  ' + cols.join(' | '));
   let blank = false;
-  for (const r of rows) console.log('  ' + r.map(v => {
+  for (const r of rows) console.log('  ' + r.map((v, i) => {
     if (typeof v === 'number') return Number.isInteger(v) ? v : v.toFixed(1);
+    if ((v === '(not set)' || v === '') && optional.includes(i)) return '－';
     if (v === '(not set)' || v === '') { blank = true; return v === '' ? '（空欄）' : v; }
     return v; }).join(' | '));
   if (blank) console.log(custom
@@ -72,7 +74,8 @@ table('全体', await report({ metrics: [{name:'activeUsers'},{name:'newUsers'},
 table('日別', await report({ dimensions: [{name:'date'}], metrics: [{name:'activeUsers'},{name:'newUsers'}], orderBys: [{dimension:{dimensionName:'date'}}] }),
   ['日付','ユーザー','新規']);
 table('どこから来たか', await report({ dimensions: [{name:'sessionSource'},{name:'sessionMedium'},{name:'sessionCampaignName'},{name:'sessionManualAdContent'}], metrics: [{name:'sessions'}], orderBys: [{metric:{metricName:'sessions'},desc:true}] }),
-  ['参照元','メディア','キャンペーン','コンテンツ(utm_content)','セッション']);
+  ['参照元','メディア','キャンペーン','コンテンツ(utm_content)','セッション'], false, [2, 3]);
+console.log('  ※ キャンペーン・コンテンツの「－」＝utm を付けていない流入（正常）');
 table('端末', await report({ dimensions: [{name:'deviceCategory'},{name:'operatingSystem'}], metrics: [{name:'activeUsers'}], orderBys: [{metric:{metricName:'activeUsers'},desc:true}] }),
   ['端末','OS','ユーザー']);
 table('イベント', await report({ dimensions: [{name:'eventName'}], metrics: [{name:'eventCount'},{name:'totalUsers'}], orderBys: [{metric:{metricName:'eventCount'},desc:true}] }),
