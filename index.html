@@ -2358,11 +2358,9 @@ function pauseGame(){
   sfx.click(); show('pause');
 }
 function goHome(){
-  // keep the record from an abandoned run
-  if (S && GAME && !S.dead){
-    const sv = gsave(GAME.id); if (S.score > sv.bests[S.diff]){ sv.bests[S.diff] = S.score; persist(); }
-    if (!S.ready) track('game_quit', runInfo());
-  }
+  // an abandoned run is not a record: bests are saved only at game over (showOver(), shared by every game);
+  // facts and hidden characters found during the run were already saved when found
+  if (S && GAME && !S.dead && !S.ready) track('game_quit', runInfo());
   paused = false; mode = 'home'; input.hold = false; drag = null;
   $('#hud').hidden = true; $('#hint').hidden = true; $('#fact').classList.remove('show'); hideBig(); layer.hidden = true;
   refreshHome(); show('home');
